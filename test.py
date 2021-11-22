@@ -1,4 +1,5 @@
 import os
+
 import numpy as np
 
 pool_folder = r"C:\Users\Amit\PycharmProjects\scribble_segmentation\pool"
@@ -46,17 +47,6 @@ canvas.pack()
 img = _sample_slice(pool_folder)
 img = ImageTk.PhotoImage(Image.fromarray(_sample_slice(pool_folder)))
 canvas.create_image(20, 20, anchor=NW, image=img)
-
-# Var1 = StringVar()
-# frame = Frame(root)
-#
-# RBttn = Radiobutton(frame, text="Option1", variable=Var1,
-#                     value=1)
-# RBttn.pack(padx=5, pady=5)
-#
-# RBttn2 = Radiobutton(frame, text="Option2", variable=Var1,
-#                      value=2)
-# RBttn2.pack(padx=5, pady=5)
 
 canvas.bind("<Button-1>", get_x_and_y)
 canvas.bind("<B1-Motion>", draw_smth)
