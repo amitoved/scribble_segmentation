@@ -1,5 +1,6 @@
+import os
 import tkinter as tk
-from tkinter import filedialog, colorchooser
+from tkinter import colorchooser
 
 import numpy as np
 from PIL import ImageTk, Image, ImageDraw
@@ -20,14 +21,23 @@ class App:
         self.class_val = None
         self.annotations = {val: [] for val in constants.classes.values()}
         self.window = tk.Tk()
-        self.window.after(100, self.selecting_file)
+        self.pool_folder = os.path.join(constants.DATA_DIR, 'pool')
+        self.selecting_file()
+        # self.window.after(100, self.selecting_file)
         self.window.mainloop()
 
     def selecting_file(self):
-        self.file_path = filedialog.askopenfilename()
+
+        image_paths = [os.path.join(self.pool_folder, file) for file in os.listdir(self.pool_folder) if 'image' in file]
+        self.image_path = np.random.choice(image_paths)
+        self.scribble_path = self.image_path.replace('image', 'scribble')
+        self.pred_path = self.image_path.replace('image', 'pred')
+
+        # self.image_path = filedialog.askopenfilename()
         # self.file_path = filedialog.askopenfilename(initialdir='images/', initialfile='example.jpg')
 
-        self.image = Image.open(self.file_path)
+        self.image = Image.fromarray(np.load(self.image_path))
+
         self.width, self.height = self.image.size
 
         self.draw = ImageDraw.Draw(self.image)
@@ -37,10 +47,10 @@ class App:
         self.frame_tools.pack()
 
         self.background_button = tk.Button(self.frame_tools, text=constants.BACKGROUND,
-                                          command=lambda: self.change_class(constants.classes[constants.BACKGROUND]))
+                                           command=lambda: self.change_class(constants.classes[constants.BACKGROUND]))
         self.background_button.pack(side='left')
         self.foreground_button = tk.Button(self.frame_tools, text=constants.FOREGROUND,
-                                          command=lambda: self.change_class(constants.classes[constants.FOREGROUND]))
+                                           command=lambda: self.change_class(constants.classes[constants.FOREGROUND]))
         self.foreground_button.pack(side='left')
 
         self.save_button = tk.Button(self.frame_tools, text='save', command=self.save)
@@ -60,9 +70,6 @@ class App:
 
         self.canvas.create_image(0, 0, image=self.photo, anchor=tk.NW)
 
-
-
-
     def get_x_and_y(self, event):
         self.last_x, self.last_y = event.x, event.y
 
@@ -76,17 +83,17 @@ class App:
         self.canvas.create_line((self.last_x, self.last_y, event.x, event.y), fill=color, width=2)
         self.last_x, self.last_y = event.x, event.y
         self.annotations[self.class_val].append([event.x, event.y])
-    def populate_mask(self):
-        mask = -np.ones((self.height, self.width))
+
+    def update_scribble(self):
+        scribble = np.load(self.scribble_path)
         for key, val in self.annotations.items():
-            val = np.array(val)
-            mask[val[:, 1], val[:, 0]] = key
-        return mask
+            val = np.array(val, dtype=np.uint8)
+            scribble[val[:, 1], val[:, 0]] = key
+        return scribble
 
     def save(self):
-        mask = self.populate_mask()
-        # TODO: implement loading (if exists), merging and saving
-        # self.image.save('output.jpg')
+        scribble = self.update_scribble()
+        np.save(self.scribble_path, scribble)
 
     def change_color(self):
         rgb, color_string = colorchooser.askcolor(initialcolor=self.color)
@@ -103,5 +110,6 @@ class App:
             self.size = int(self.size_entry.get())
         except Exceptions as ex:
             print(ex)
+
 
 App()
