@@ -4,6 +4,7 @@ from tkinter import colorchooser
 
 import numpy as np
 from PIL import ImageTk, Image, ImageDraw
+from matplotlib import pyplot as plt
 
 import constants
 
@@ -14,8 +15,6 @@ class App:
         self.color = '#FF0000'
         self.figure = 'rectangle'
         self.size = 5
-        self.class_val = None
-        self.annotations = {val: [] for val in constants.classes.values()}
         self.window = tk.Tk()
         self.pool_folder = os.path.join(constants.DATA_DIR, 'pool')
         self.selecting_file()
@@ -24,6 +23,9 @@ class App:
 
     def selecting_file(self, update=False):
 
+        self.class_val = None
+        self.last_x, self.last_y = None, None
+        self.annotations = {val: [] for val in constants.classes.values()}
         image_paths = [os.path.join(self.pool_folder, file) for file in os.listdir(self.pool_folder) if 'image' in file]
         self.image_path = np.random.choice(image_paths)
         self.scribble_path = self.image_path.replace('image', 'scribble')
@@ -32,9 +34,23 @@ class App:
         # self.image_path = filedialog.askopenfilename()
         # self.file_path = filedialog.askopenfilename(initialdir='images/', initialfile='example.jpg')
 
-        self.image = Image.fromarray(np.load(self.image_path))
+        # pred = Image.fromarray(np.load(self.pred_path))
+
+        image = np.load(self.image_path)
+        image = image - np.min(image)
+        image = image / np.max(image)
+
+        pred = np.zeros(list(image.shape))
+        pred[50:200, 30:150] = 200
+        cm = plt.get_cmap('jet')
+        pred = cm(pred)[..., :3]
+        image = np.stack([image]*3, axis=-1) * (1-constants.alpha) + constants.alpha * pred
+        image = (image*255).astype(np.uint8)
+
+        self.scribble = Image.fromarray(255 * np.ones(image.shape, dtype=np.uint8))
+
+        self.image = Image.fromarray(image)
         self.width, self.height = self.image.size
-        self.annotation_img = Image.new('RGB', (self.width, self.height))
 
         self.draw = ImageDraw.Draw(self.image)
         self.photo = ImageTk.PhotoImage(image=self.image)
@@ -71,8 +87,6 @@ class App:
 
     def get_x_and_y(self, event):
         self.last_x, self.last_y = event.x, event.y
-        # self.last_x.append(event.x)
-        # self.last_y.append(event.y)
 
     def draw_smth(self, event):
         if self.class_val == constants.classes[constants.FOREGROUND]:
@@ -84,24 +98,22 @@ class App:
         self.canvas.create_line((self.last_x, self.last_y, event.x, event.y), fill=color, width=2)
         self.last_x, self.last_y = event.x, event.y
         self.annotations[self.class_val].append([event.x, event.y])
-        img1 = ImageDraw.Draw(self.annotation_img)
-        img1.line((self.last_x, self.last_y, event.x, event.y), fill=color, width=0)
+        img1 = ImageDraw.Draw(self.scribble)
+        img1.line((self.last_x, self.last_y, event.x, event.y), fill=self.class_val, width=5)
+        # TODO: change line widht (currently - only draws the vertices)
         # self.annotation_img[event.y, event.x, self.class_val] = 1
 
     def update_scribble(self):
         scribble = np.load(self.scribble_path)
-        for key, val in self.annotations.items():
-            val = np.array(val, dtype=np.uint8)
-            scribble[val[:, 1], val[:, 0]] = key
-        return scribble
+        self.scribble = np.minimum(scribble, self.scribble)
+        # for key, val in self.annotations.items():
+        #     val = np.array(val, dtype=np.uint8)
+        #     scribble[val[:, 1], val[:, 0]] = key
 
     def save(self):
-        scribble = self.update_scribble()
-        np.save(self.scribble_path, scribble)
+        self.update_scribble()
+        np.save(self.scribble_path, self.scribble)
         print('saved scribble to' + self.scribble_path)
-        self.last_x, self.last_y = None, None
-        self.annotations = {val: [] for val in constants.classes.values()}
-        self.class_val = None
         self.selecting_file(update=True)
 
     def change_color(self):

@@ -12,7 +12,7 @@ if __name__ == "__main__":
     for idx, slice in enumerate(vol):
         slice_path, pred_path, scribble_path = get_paths(pool_folder, idx)
         pred = np.zeros_like(slice)
-        scribble = -np.ones_like(slice)
+        scribble = 255 * np.ones_like(slice)
         np.save(slice_path, slice)
         np.save(pred_path, pred)
         np.save(scribble_path, scribble)
