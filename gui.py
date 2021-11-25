@@ -14,10 +14,6 @@ class App:
         self.color = '#FF0000'
         self.figure = 'rectangle'
         self.size = 5
-        self.bg_last_x = None
-        self.bg_last_y = None
-        self.fg_last_x = None
-        self.fg_last_y = None
         self.class_val = None
         self.annotations = {val: [] for val in constants.classes.values()}
         self.window = tk.Tk()
@@ -48,10 +44,12 @@ class App:
             self.frame_tools.pack()
 
             self.background_button = tk.Button(self.frame_tools, text=constants.BACKGROUND,
-                                               command=lambda: self.change_class(constants.classes[constants.BACKGROUND]))
+                                               command=lambda: self.change_class(
+                                                   constants.classes[constants.BACKGROUND]))
             self.background_button.pack(side='left')
             self.foreground_button = tk.Button(self.frame_tools, text=constants.FOREGROUND,
-                                               command=lambda: self.change_class(constants.classes[constants.FOREGROUND]))
+                                               command=lambda: self.change_class(
+                                                   constants.classes[constants.FOREGROUND]))
             self.foreground_button.pack(side='left')
 
             self.save_button = tk.Button(self.frame_tools, text='save', command=self.save)
@@ -76,7 +74,6 @@ class App:
         # self.last_x.append(event.x)
         # self.last_y.append(event.y)
 
-
     def draw_smth(self, event):
         if self.class_val == constants.classes[constants.FOREGROUND]:
             color = 'red'
@@ -99,12 +96,12 @@ class App:
         return scribble
 
     def save(self):
-        # scribble = self.update_scribble()
-        # np.save(self.scribble_path, scribble)
-        # np.save(self.scribble_path, self.annotation_img)
-        np.save(self.scribble_path, np.asarray(self.annotation_img))
+        scribble = self.update_scribble()
+        np.save(self.scribble_path, scribble)
         print('saved scribble to' + self.scribble_path)
         self.last_x, self.last_y = None, None
+        self.annotations = {val: [] for val in constants.classes.values()}
+        self.class_val = None
         self.selecting_file(update=True)
 
     def change_color(self):
