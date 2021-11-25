@@ -3,10 +3,17 @@ import tkinter as tk
 from tkinter import colorchooser
 
 import numpy as np
+from matplotlib import pyplot as plt
+
+import utils
+
+cmap = plt.get_cmap('jet')
+
 from PIL import ImageTk, Image, ImageDraw
 from matplotlib import pyplot as plt
 
 import constants
+from utils import normalize
 
 
 class App:
@@ -37,20 +44,17 @@ class App:
         # pred = Image.fromarray(np.load(self.pred_path))
 
         image = np.load(self.image_path)
-        image = image - np.min(image)
-        image = image / np.max(image)
+        image = normalize(image)
+        self.height, self.width = image.shape
 
-        pred = np.zeros(list(image.shape))
-        pred[50:200, 30:150] = 200
-        cm = plt.get_cmap('jet')
-        pred = cm(pred)[..., :3]
+        pred = np.zeros((self.height, self.width, constants.n_classes))
+        pred[100:200, 30:150, 0] = 200
+        pred[50:80, 30:150, 1] = 60
+        pred = utils.multichannel2rgb(pred)
         image = np.stack([image]*3, axis=-1) * (1-constants.alpha) + constants.alpha * pred
         image = (image*255).astype(np.uint8)
-
-        self.scribble = Image.fromarray(255 * np.ones(image.shape, dtype=np.uint8))
-
         self.image = Image.fromarray(image)
-        self.width, self.height = self.image.size
+        self.scribble = Image.fromarray(np.zeros((self.height, self.width, constants.n_classes), dtype=np.uint8))
 
         self.draw = ImageDraw.Draw(self.image)
         self.photo = ImageTk.PhotoImage(image=self.image)
