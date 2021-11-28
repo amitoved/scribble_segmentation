@@ -1,6 +1,9 @@
 import tensorflow as tf
 from tensorflow.keras import layers, models
 
+import constants
+
+
 def unpool2xBilinear(inputs, name='unpool2xBilinear'):
     sh = tf.shape(inputs)
     newShape = 2 * sh[1:3]
@@ -53,7 +56,6 @@ def unet2d():
         axis=3)
     up8 = layers.SeparableConv2D(n_filters, 3, padding='same', activation='relu')(up8)
 
-    outputs = layers.Conv2D(1, 1, padding='same', activation='sigmoid')(up8)
+    outputs = layers.Conv2D(constants.n_classes, 1, padding='same', activation='softmax')(up8)
     model = models.Model([inputs], [outputs], name='unet2d')
-    print(model.summary())
     return model

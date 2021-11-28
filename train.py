@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 from tensorflow.keras import optimizers
+from tqdm import tqdm
 
 import constants
 from models.architectures import unet2d
@@ -43,7 +44,18 @@ model = unet2d()
 model.compile(loss='categorical_crossentropy', optimizer=optimizers.Adam(1e-4))
 training_generator = data_generator(pool_folder, batch_size=1)
 
-x, y = next(training_generator)
-print(x.shape)
-print(y.shape)
-model.fit_generator(training_generator, steps_per_epoch=4, epochs=1)
+while True:
+    model.fit_generator(training_generator, steps_per_epoch=4, epochs=10)
+    image_paths = [os.path.join(pool_folder, file) for file in os.listdir(pool_folder) if 'image' in file]
+    pred_paths = [image_path.replace('image', 'pred') for image_path in image_paths]
+    for image_path, pred_path in tqdm(zip(image_paths, pred_paths)):
+        image = np.load(image_path).squeeze()
+        n_rows, n_cols = image.shape
+        target_rows = max(128, 2 ** np.ceil(np.log2(n_rows)))
+        target_cols = max(128, 2 ** np.ceil(np.log2(n_cols)))
+        rows_to_add = int(target_rows - n_rows)
+        cols_to_add = int(target_cols - n_cols)
+        image = np.pad(image, ((0, rows_to_add), (0, cols_to_add)), mode='constant', constant_values=-1024)
+        pred = model.predict(image[None, :, :, None])[0]
+        pred = pred[:n_rows, :n_cols, :]
+        np.save(arr=pred, file=pred_path)

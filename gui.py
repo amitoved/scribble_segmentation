@@ -45,8 +45,8 @@ class App:
         self.height, self.width = image.shape
 
         pred = np.load(self.pred_path)
-        pred[100:200, 30:150, 0] = 0.9
-        pred[50:80, 30:150, 1] = 0.7
+        # pred[100:200, 30:150, 0] = 0.9
+        # pred[50:80, 30:150, 1] = 0.7
         pred = multichannel2rgb(pred)
         image = np.stack([image] * 3, axis=-1) * (1 - constants.alpha) + constants.alpha * pred
         image = (image * 255).astype(np.uint8)
