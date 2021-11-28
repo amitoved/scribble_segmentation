@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 
+import constants
 from constants import DATA_DIR
 from utils import get_paths
 
@@ -11,8 +12,9 @@ if __name__ == "__main__":
 
     for idx, slice in enumerate(vol):
         slice_path, pred_path, scribble_path = get_paths(pool_folder, idx)
-        pred = np.zeros_like(slice)
-        scribble = 255 * np.ones_like(slice)
+        n_rows, n_cols = slice.shape
+        pred = np.zeros([n_rows, n_cols, constants.n_classes])
+        scribble = np.zeros([n_rows, n_cols, constants.n_classes], dtype=np.bool)
         np.save(slice_path, slice)
         np.save(pred_path, pred)
         np.save(scribble_path, scribble)

@@ -10,7 +10,6 @@ import utils
 cmap = plt.get_cmap('jet')
 
 from PIL import ImageTk, Image, ImageDraw
-from matplotlib import pyplot as plt
 
 import constants
 from utils import normalize
@@ -47,17 +46,16 @@ class App:
         image = normalize(image)
         self.height, self.width = image.shape
 
-        pred = np.zeros((self.height, self.width, constants.n_classes))
-        pred[100:200, 30:150, 0] = 200
-        pred[50:80, 30:150, 1] = 60
+        pred = np.load(self.pred_path)
+        pred[100:200, 30:150, 0] = 0.9
+        pred[50:80, 30:150, 1] = 0.7
         pred = utils.multichannel2rgb(pred)
-        image = np.stack([image]*3, axis=-1) * (1-constants.alpha) + constants.alpha * pred
-        image = (image*255).astype(np.uint8)
+        image = np.stack([image] * 3, axis=-1) * (1 - constants.alpha) + constants.alpha * pred
+        image = (image * 255).astype(np.uint8)
         self.image = Image.fromarray(image)
-        self.scribble = Image.fromarray(np.zeros((self.height, self.width, constants.n_classes), dtype=np.uint8))
-
         self.draw = ImageDraw.Draw(self.image)
         self.photo = ImageTk.PhotoImage(image=self.image)
+        self.scribble = Image.fromarray(255 * np.ones(list(pred.shape[:2])).astype(np.uint8))
 
         if not update:
             self.frame_tools = tk.Frame(self.window)
@@ -104,15 +102,16 @@ class App:
         self.annotations[self.class_val].append([event.x, event.y])
         img1 = ImageDraw.Draw(self.scribble)
         img1.line((self.last_x, self.last_y, event.x, event.y), fill=self.class_val, width=5)
-        # TODO: change line widht (currently - only draws the vertices)
+        # TODO: change line width (currently - only draws the vertices)
         # self.annotation_img[event.y, event.x, self.class_val] = 1
 
     def update_scribble(self):
         scribble = np.load(self.scribble_path)
-        self.scribble = np.minimum(scribble, self.scribble)
-        # for key, val in self.annotations.items():
-        #     val = np.array(val, dtype=np.uint8)
-        #     scribble[val[:, 1], val[:, 0]] = key
+        current_scribble = np.array(self.scribble)
+        r, c = np.where(current_scribble != 255)
+        val = current_scribble[r, c]
+        scribble[r, c, val] = scribble[r, c, val] == False
+        self.scribble = scribble
 
     def save(self):
         self.update_scribble()
