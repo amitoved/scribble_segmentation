@@ -4,7 +4,7 @@ import numpy as np
 
 import constants
 from constants import DATA_DIR
-from utils import get_paths
+from utils.utils import get_paths
 
 if __name__ == "__main__":
     pool_folder = os.path.join(DATA_DIR, 'pool')

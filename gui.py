@@ -5,14 +5,12 @@ from tkinter import colorchooser
 import numpy as np
 from matplotlib import pyplot as plt
 
-import utils
-
 cmap = plt.get_cmap('jet')
 
 from PIL import ImageTk, Image, ImageDraw
 
 import constants
-from utils import normalize
+from utils.utils import normalize, multichannel2rgb
 
 
 class App:
@@ -49,7 +47,7 @@ class App:
         pred = np.load(self.pred_path)
         pred[100:200, 30:150, 0] = 0.9
         pred[50:80, 30:150, 1] = 0.7
-        pred = utils.multichannel2rgb(pred)
+        pred = multichannel2rgb(pred)
         image = np.stack([image] * 3, axis=-1) * (1 - constants.alpha) + constants.alpha * pred
         image = (image * 255).astype(np.uint8)
         self.image = Image.fromarray(image)
