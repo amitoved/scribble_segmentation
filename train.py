@@ -28,7 +28,7 @@ def data_generator(pool_folder, batch_size=1):
                 scribble = np.load(scribble_path)
                 if np.any(scribble):
                     x[i, :, :, 0] = np.load(image_path)
-                    y[i] = scribble
+                    y[i] = scribble.astype(int)
                     found_non_empty_scibble = True
 
         target_rows = max(128, 2 ** np.ceil(np.log2(n_rows)))

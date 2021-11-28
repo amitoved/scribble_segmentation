@@ -18,8 +18,9 @@ class App:
     def __init__(self):
         self.color = '#FF0000'
         self.figure = 'rectangle'
-        self.size = 5
+        self.size = 15
         self.window = tk.Tk()
+        self.window.geometry('600x600+300+100')
         self.pool_folder = os.path.join(constants.DATA_DIR, 'pool')
         self.selecting_file()
         # self.window.after(100, self.selecting_file)
@@ -78,7 +79,7 @@ class App:
             # self.color_button = tk.Button(self.frame_tools, text='Color: #FF0000', command=self.change_color)
             # self.color_button.pack(side='left')
 
-            self.canvas = tk.Canvas(self.window, width=self.width, height=self.height)
+            self.canvas = tk.Canvas(self.window, width=self.width*4, height=self.height*4)
             self.canvas.pack()
             self.canvas.bind("<Button-1>", self.get_x_and_y)
             self.canvas.bind("<B1-Motion>", self.draw_smth)
@@ -90,9 +91,9 @@ class App:
 
     def draw_smth(self, event):
         if self.class_val == constants.classes[constants.FOREGROUND]:
-            color = 'red'
-        elif self.class_val == constants.classes[constants.BACKGROUND]:
             color = 'blue'
+        elif self.class_val == constants.classes[constants.BACKGROUND]:
+            color = 'red'
         else:
             return
         self.canvas.create_line((self.last_x, self.last_y, event.x, event.y), fill=color, width=2)
