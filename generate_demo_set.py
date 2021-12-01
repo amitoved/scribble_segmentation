@@ -10,7 +10,7 @@ if __name__ == "__main__":
     pool_folder = os.path.join(DATA_DIR, 'pool')
     vol = np.load(os.path.join(DATA_DIR, 'head_volume.npy'))
 
-    for idx, slice in enumerate(vol[::10]):
+    for idx, slice in enumerate(vol[:100]):
         slice_path, pred_path, scribble_path = get_paths(pool_folder, idx)
         n_rows, n_cols = slice.shape
         pred = np.zeros([n_rows, n_cols, constants.n_classes])

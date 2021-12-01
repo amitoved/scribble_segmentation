@@ -40,8 +40,20 @@ def data_generator(pool_folder, batch_size=1):
         yield x_, y_
 
 
+from tensorflow.keras import backend as K
+import tensorflow as tf
+
+def weighted_cce(y_true, y_pred):
+
+    weights = tf.reduce_sum(y_true, axis=-1, keepdims=True)
+    # weights = weights / K.sum(weights)
+    y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
+    loss = tf.reduce_sum(y_true * K.log(y_pred), axis=-1, keepdims=True) * weights
+    loss = -K.sum(loss, -1)
+    return loss
+
 model = unet2d()
-model.compile(loss='categorical_crossentropy', optimizer=optimizers.Adam(1e-4))
+model.compile(loss=[weighted_cce], optimizer=optimizers.Adam(1e-4))
 training_generator = data_generator(pool_folder, batch_size=1)
 
 while True:

@@ -97,10 +97,11 @@ class App:
         else:
             return
         self.canvas.create_line((self.last_x, self.last_y, event.x, event.y), fill=color, width=2)
-        self.last_x, self.last_y = event.x, event.y
         self.annotations[self.class_val].append([event.x, event.y])
         img1 = ImageDraw.Draw(self.scribble)
         img1.line((self.last_x, self.last_y, event.x, event.y), fill=self.class_val, width=5)
+        self.last_x, self.last_y = event.x, event.y
+
         # TODO: change line width (currently - only draws the vertices)
         # self.annotation_img[event.y, event.x, self.class_val] = 1
 

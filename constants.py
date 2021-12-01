@@ -11,4 +11,4 @@ classes = {BACKGROUND: 0,
            FOREGROUND: 1}
 
 n_classes = len(classes.keys())
-alpha = 0.3
+alpha = 0.5
