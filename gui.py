@@ -1,9 +1,11 @@
 import os
 import tkinter as tk
-from tkinter import colorchooser
-
+from tkinter import colorchooser, StringVar, filedialog
 import numpy as np
 from PIL import ImageTk, Image, ImageDraw
+import platform
+from matplotlib.pyplot import cm
+
 
 import constants
 
@@ -15,6 +17,8 @@ class App:
         self.figure = 'rectangle'
         self.size = 5
         self.class_val = None
+        self.colors = constants.COLORS[0:: len(constants.COLORS) // len(constants.classes_order)]
+        self.pil_colors = cm.rainbow(np.linspace(0, 1, len(constants.classes_order)))
         self.annotations = {val: [] for val in constants.classes.values()}
         self.window = tk.Tk()
         self.pool_folder = os.path.join(constants.DATA_DIR, 'pool')
@@ -23,14 +27,16 @@ class App:
         self.window.mainloop()
 
     def selecting_file(self, update=False):
-
-        image_paths = [os.path.join(self.pool_folder, file) for file in os.listdir(self.pool_folder) if 'image' in file]
-        self.image_path = np.random.choice(image_paths)
+        if not update:
+            if 'macOS' in platform.platform():
+                print('Pick pool folder')
+                file_path_string = str(input())
+            else:
+                file_path_string = filedialog.askdirectory()
+            self.image_paths = [os.path.join(file_path_string, file) for file in os.listdir(file_path_string) if 'image' in file]
+        self.image_path = np.random.choice(self.image_paths)
         self.scribble_path = self.image_path.replace('image', 'scribble')
         self.pred_path = self.image_path.replace('image', 'pred')
-
-        # self.image_path = filedialog.askopenfilename()
-        # self.file_path = filedialog.askopenfilename(initialdir='images/', initialfile='example.jpg')
 
         self.image = Image.fromarray(np.load(self.image_path))
         self.width, self.height = self.image.size
@@ -42,16 +48,18 @@ class App:
         if not update:
             self.frame_tools = tk.Frame(self.window)
             self.frame_tools.pack()
-
-            self.background_button = tk.Button(self.frame_tools, text=constants.BACKGROUND,
-                                               command=lambda: self.change_class(
-                                                   constants.classes[constants.BACKGROUND]))
-            self.background_button.pack(side='left')
-            self.foreground_button = tk.Button(self.frame_tools, text=constants.FOREGROUND,
-                                               command=lambda: self.change_class(
-                                                   constants.classes[constants.FOREGROUND]))
-            self.foreground_button.pack(side='left')
-
+            #
+            # self.background_button = tk.Button(self.frame_tools, text=constants.BACKGROUND,
+            #                                    command=lambda: self.change_class(
+            #                                        constants.classes[constants.BACKGROUND]))
+            # self.background_button.pack(side='left')
+            # self.foreground_button = tk.Button(self.frame_tools, text=constants.FOREGROUND,
+            #                                    command=lambda: self.change_class(
+            #                                        constants.classes[constants.FOREGROUND]))
+            # self.foreground_button.pack(side='left')
+            self.selected_class = StringVar()
+            self.option_menu = tk.OptionMenu(self.frame_tools, self.selected_class, *constants.classes_order)
+            self.option_menu.pack(side='left')
             self.save_button = tk.Button(self.frame_tools, text='save', command=self.save)
             self.save_button.pack(side='left')
 
@@ -75,17 +83,14 @@ class App:
         # self.last_y.append(event.y)
 
     def draw_smth(self, event):
-        if self.class_val == constants.classes[constants.FOREGROUND]:
-            color = 'red'
-        elif self.class_val == constants.classes[constants.BACKGROUND]:
-            color = 'blue'
-        else:
-            return
+        self.class_val = constants.classes_order.index(self.selected_class.get())
+        color = self.colors[self.class_val]
+        pil_color = tuple((255 * np.array(list(self.pil_colors[self.class_val]))).astype(int)[:-1])
         self.canvas.create_line((self.last_x, self.last_y, event.x, event.y), fill=color, width=2)
         self.last_x, self.last_y = event.x, event.y
         self.annotations[self.class_val].append([event.x, event.y])
         img1 = ImageDraw.Draw(self.annotation_img)
-        img1.line((self.last_x, self.last_y, event.x, event.y), fill=color, width=0)
+        img1.line((self.last_x, self.last_y, event.x, event.y), fill=pil_color, width=0)
         # self.annotation_img[event.y, event.x, self.class_val] = 1
 
     def update_scribble(self):
@@ -111,8 +116,8 @@ class App:
             self.color = color_string
             self.color_button['text'] = 'Color: ' + color_string
 
-    def change_class(self, val):
-        self.class_val = val
+    # def change_class(self, val):
+    #     self.class_val = val
 
     def change_size(self, event=None):
         try:
