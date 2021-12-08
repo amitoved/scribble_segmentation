@@ -17,8 +17,8 @@ class App:
         self.figure = 'rectangle'
         self.size = 5
         self.class_val = None
-        self.colors = constants.COLORS[0:: len(constants.COLORS) // len(constants.classes_order)]
-        self.pil_colors = cm.rainbow(np.linspace(0, 1, len(constants.classes_order)))
+        self.colors = constants.TK_COLORS[0:: len(constants.TK_COLORS) // len(constants.classes_order)]
+        self.pil_colors = constants.class_colors
         self.annotations = {val: [] for val in constants.classes.values()}
         self.window = tk.Tk()
         self.pool_folder = os.path.join(constants.DATA_DIR, 'pool')
