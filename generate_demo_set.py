@@ -1,31 +1,51 @@
 import os
+from tkinter import *
+from tkinter import filedialog
 
+import imageio
 import numpy as np
+from tqdm import tqdm
 
-import constants
-from constants import DATA_DIR
-from utils.utils import get_paths
+from constants import DATA_DIR, n_classes
+from utils.utils import generate_pool_paths
+
+
+def get_files(folder, extensions):
+    from pathlib import Path
+    all_files = []
+    for ext in extensions:
+        all_files.extend(Path(folder).glob(ext))
+    return all_files
+
 
 if __name__ == "__main__":
-    pool_folder = os.path.join(DATA_DIR, 'pool')
-    vol = np.load(os.path.join(DATA_DIR, 'head_volume.npy'))
 
-    for idx, slice in enumerate(vol[:100]):
-        slice_path, pred_path, scribble_path = get_paths(pool_folder, idx)
-        n_rows, n_cols = slice.shape
-        pred = np.zeros([n_rows, n_cols, constants.n_classes])
-        scribble = np.zeros([n_rows, n_cols, constants.n_classes], dtype=np.bool)
-        np.save(slice_path, slice)
+    root = Tk()
+    root.withdraw()
+    source_folder = filedialog.askdirectory(initialdir=DATA_DIR)
+    pool_name = os.path.basename(source_folder)
+    pool_folder = os.path.join(DATA_DIR, pool_name)
+    if not os.path.exists(pool_folder):
+        os.mkdir(pool_folder)
+    source_files = get_files(folder=source_folder, extensions=['*.png', '*.jpg'])
+    q = 32
+
+    for source_file in tqdm(source_files):
+        base = os.path.basename(source_file)
+        basename, ext = os.path.splitext(base)
+        image_path, pred_path, scribble_path = generate_pool_paths(pool_folder, basename)
+        img = imageio.imread(source_file)
+        target_rows, target_cols = q * (img.shape[0] // q), q * (img.shape[1] // q)
+
+        if img.ndim == 3:
+            img = img[:target_rows, :target_cols, :]
+        else:
+            img = img[:target_rows, :target_cols]
+
+        pred = np.zeros([target_rows, target_cols, n_classes])
+        scribble = np.zeros([target_rows, target_cols, n_classes], dtype=np.bool)
+
+        np.save(image_path, img)
         np.save(pred_path, pred)
         np.save(scribble_path, scribble)
     print('Done')
-
-# def _sample_slice(pool_folder):
-#     files = os.listdir(pool_folder)
-#     full_paths = [os.path.join(pool_folder, file) for file in files if file.endswith('.npy')]
-#     chosen_file = np.random.choice(full_paths)
-#     img = np.load(chosen_file)
-#     img = img - np.min(img)
-#     img = img / np.max(img)
-#     img = img * 255
-#     return img
