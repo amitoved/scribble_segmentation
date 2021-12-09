@@ -92,8 +92,8 @@ class App:
         img1 = ImageDraw.Draw(self.annotation_img)
 
         # img1.line((self.last_x, self.last_y, event.x, event.y), fill=pil_color, width=0)
-        img1.line((self.last_x, self.last_y, event.x, event.y), fill=self.class_val, width=5)
         img1 = ImageDraw.Draw(self.scribble)
+        img1.line((self.last_x, self.last_y, event.x, event.y), fill=self.class_val, width=5)
         self.last_x, self.last_y = event.x, event.y
 
     def update_scribble(self):

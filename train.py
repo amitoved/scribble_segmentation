@@ -2,8 +2,9 @@ import os
 
 import numpy as np
 from tensorflow.keras import optimizers
+from tensorflow.keras import backend as K
+import tensorflow as tf
 from tqdm import tqdm
-
 import constants
 from models.architectures import unet2d
 from utils.utils import get_paths
@@ -49,8 +50,7 @@ def data_generator(pool_folder, batch_size=1):
         yield x_, y_
 
 
-from tensorflow.keras import backend as K
-import tensorflow as tf
+
 
 def weighted_cce(y_true, y_pred):
 

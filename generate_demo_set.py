@@ -1,6 +1,7 @@
 import os
 from tkinter import *
 from tkinter import filedialog
+import platform
 
 import imageio
 import numpy as np
@@ -20,9 +21,14 @@ def get_files(folder, extensions):
 
 if __name__ == "__main__":
 
-    root = Tk()
-    root.withdraw()
-    source_folder = filedialog.askdirectory(initialdir=DATA_DIR)
+    if 'macOS' in platform.platform():
+        print('Pick pool folder')
+        source_folder = str(input())
+    else:
+        root = Tk()
+        root.withdraw()
+        source_folder = filedialog.askdirectory(initialdir=DATA_DIR)
+
     pool_name = os.path.basename(source_folder)
     pool_folder = os.path.join(DATA_DIR, pool_name)
     if not os.path.exists(pool_folder):
@@ -41,7 +47,7 @@ if __name__ == "__main__":
             img = img[..., None]
         img = img[:target_rows, :target_cols, :]
         pred = np.zeros([target_rows, target_cols, n_classes])
-        scribble = np.zeros([target_rows, target_cols, n_classes], dtype=np.bool)
+        scribble = np.zeros([target_rows, target_cols, n_classes], dtype=bool)
 
         np.save(image_path, img)
         np.save(pred_path, pred)
