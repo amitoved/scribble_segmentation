@@ -1,46 +1,46 @@
 import os
 import tkinter as tk
-from tkinter import colorchooser
-
+from tkinter import colorchooser, StringVar, filedialog
 import numpy as np
-from matplotlib import pyplot as plt
-
-cmap = plt.get_cmap('jet')
-
 from PIL import ImageTk, Image, ImageDraw
+import platform
+from matplotlib.pyplot import cm
+
 
 import constants
-from utils.utils import normalize, multichannel2rgb
 
-pool_folder_name = 'kitti'
-pool_image_size = [1]
+
 class App:
 
     def __init__(self):
         self.color = '#FF0000'
         self.figure = 'rectangle'
-        self.size = 15
+        self.size = 5
+        self.class_val = None
+        self.colors = constants.TK_COLORS[0:: len(constants.TK_COLORS) // len(constants.classes_order)]
+        self.pil_colors = constants.class_colors
+        self.annotations = {val: [] for val in constants.classes.values()}
         self.window = tk.Tk()
-        self.window.geometry('1200x360+100+100')
-        self.pool_folder = os.path.join(constants.DATA_DIR, pool_folder_name)
+        self.pool_folder = os.path.join(constants.DATA_DIR, 'pool')
         self.selecting_file()
         # self.window.after(100, self.selecting_file)
         self.window.mainloop()
 
     def selecting_file(self, update=False):
-
-        self.class_val = None
-        self.last_x, self.last_y = None, None
-        self.annotations = {val: [] for val in constants.classes.values()}
-        image_paths = [os.path.join(self.pool_folder, file) for file in os.listdir(self.pool_folder) if 'image' in file]
-        self.image_path = np.random.choice(image_paths)
+        if not update:
+            if 'macOS' in platform.platform():
+                print('Pick pool folder')
+                file_path_string = str(input())
+            else:
+                file_path_string = filedialog.askdirectory()
+            self.image_paths = [os.path.join(file_path_string, file) for file in os.listdir(file_path_string) if 'image' in file]
+        self.image_path = np.random.choice(self.image_paths)
         self.scribble_path = self.image_path.replace('image', 'scribble')
         self.pred_path = self.image_path.replace('image', 'pred')
 
-        # self.image_path = filedialog.askopenfilename()
-        # self.file_path = filedialog.askopenfilename(initialdir='images/', initialfile='example.jpg')
-
-        # pred = Image.fromarray(np.load(self.pred_path))
+        self.image = Image.fromarray(np.load(self.image_path))
+        self.width, self.height = self.image.size
+        self.annotation_img = Image.new('RGB', (self.width, self.height))
 
         image = np.load(self.image_path)
         image = normalize(image)
@@ -62,16 +62,18 @@ class App:
         if not update:
             self.frame_tools = tk.Frame(self.window)
             self.frame_tools.pack()
-
-            self.background_button = tk.Button(self.frame_tools, text=constants.BACKGROUND,
-                                               command=lambda: self.change_class(
-                                                   constants.classes[constants.BACKGROUND]))
-            self.background_button.pack(side='left')
-            self.foreground_button = tk.Button(self.frame_tools, text=constants.FOREGROUND,
-                                               command=lambda: self.change_class(
-                                                   constants.classes[constants.FOREGROUND]))
-            self.foreground_button.pack(side='left')
-
+            #
+            # self.background_button = tk.Button(self.frame_tools, text=constants.BACKGROUND,
+            #                                    command=lambda: self.change_class(
+            #                                        constants.classes[constants.BACKGROUND]))
+            # self.background_button.pack(side='left')
+            # self.foreground_button = tk.Button(self.frame_tools, text=constants.FOREGROUND,
+            #                                    command=lambda: self.change_class(
+            #                                        constants.classes[constants.FOREGROUND]))
+            # self.foreground_button.pack(side='left')
+            self.selected_class = StringVar()
+            self.option_menu = tk.OptionMenu(self.frame_tools, self.selected_class, *constants.classes_order)
+            self.option_menu.pack(side='left')
             self.save_button = tk.Button(self.frame_tools, text='save', command=self.save)
             self.save_button.pack(side='left')
 
@@ -93,6 +95,9 @@ class App:
         self.last_x, self.last_y = event.x, event.y
 
     def draw_smth(self, event):
+        self.class_val = constants.classes_order.index(self.selected_class.get())
+        color = self.colors[self.class_val]
+        pil_color = tuple((255 * np.array(list(self.pil_colors[self.class_val]))).astype(int)[:-1])
         if self.class_val == constants.classes[constants.FOREGROUND]:
             color = 'blue'
         elif self.class_val == constants.classes[constants.BACKGROUND]:
@@ -101,6 +106,8 @@ class App:
             return
         self.canvas.create_line((self.last_x, self.last_y, event.x, event.y), fill=color, width=2)
         self.annotations[self.class_val].append([event.x, event.y])
+        img1 = ImageDraw.Draw(self.annotation_img)
+        img1.line((self.last_x, self.last_y, event.x, event.y), fill=pil_color, width=0)
         img1 = ImageDraw.Draw(self.scribble)
         img1.line((self.last_x, self.last_y, event.x, event.y), fill=self.class_val, width=5)
         self.last_x, self.last_y = event.x, event.y
@@ -120,6 +127,9 @@ class App:
         self.update_scribble()
         np.save(self.scribble_path, self.scribble)
         print('saved scribble to' + self.scribble_path)
+        self.last_x, self.last_y = None, None
+        self.annotations = {val: [] for val in constants.classes.values()}
+        self.class_val = None
         self.selecting_file(update=True)
 
     def change_color(self):
@@ -129,8 +139,8 @@ class App:
             self.color = color_string
             self.color_button['text'] = 'Color: ' + color_string
 
-    def change_class(self, val):
-        self.class_val = val
+    # def change_class(self, val):
+    #     self.class_val = val
 
     def change_size(self, event=None):
         try:
