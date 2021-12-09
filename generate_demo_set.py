@@ -1,14 +1,11 @@
 import os
-from tkinter import *
-from tkinter import filedialog
-import platform
 
 import imageio
 import numpy as np
 from tqdm import tqdm
 
 from constants import DATA_DIR, n_classes
-from utils.general_utils import generate_pool_paths
+from utils.general_utils import generate_pool_paths, folder_picker
 
 
 def get_files(folder, extensions):
@@ -21,14 +18,7 @@ def get_files(folder, extensions):
 
 if __name__ == "__main__":
 
-    if 'macOS' in platform.platform():
-        print('Pick pool folder')
-        source_folder = str(input())
-    else:
-        root = Tk()
-        root.withdraw()
-        source_folder = filedialog.askdirectory(initialdir=DATA_DIR)
-
+    source_folder = folder_picker()
     pool_name = os.path.basename(source_folder)
     pool_folder = os.path.join(DATA_DIR, pool_name)
     if not os.path.exists(pool_folder):
