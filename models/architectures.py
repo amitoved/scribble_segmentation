@@ -10,9 +10,9 @@ def unpool2xBilinear(inputs, name='unpool2xBilinear'):
     return tf.image.resize(inputs, newShape)
 
 
-def unet2d():
+def unet2d(n_input_channels):
     n_filters = 32
-    inputs = layers.Input(shape=(None, None, 1))
+    inputs = layers.Input(shape=(None, None, n_input_channels))
 
     # 128x128
     conv1 = layers.SeparableConv2D(n_filters, 3, padding='same', activation='relu')(inputs)

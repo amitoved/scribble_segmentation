@@ -12,7 +12,8 @@ from PIL import ImageTk, Image, ImageDraw
 import constants
 from utils.utils import normalize, multichannel2rgb
 
-
+pool_folder_name = 'kitti'
+pool_image_size = [1]
 class App:
 
     def __init__(self):
@@ -20,8 +21,8 @@ class App:
         self.figure = 'rectangle'
         self.size = 15
         self.window = tk.Tk()
-        self.window.geometry('600x600+300+100')
-        self.pool_folder = os.path.join(constants.DATA_DIR, 'pool')
+        self.window.geometry('1200x360+100+100')
+        self.pool_folder = os.path.join(constants.DATA_DIR, pool_folder_name)
         self.selecting_file()
         # self.window.after(100, self.selecting_file)
         self.window.mainloop()
@@ -43,13 +44,15 @@ class App:
 
         image = np.load(self.image_path)
         image = normalize(image)
-        self.height, self.width = image.shape
-
+        if image.ndim == 3:
+            self.height, self.width, _ = image.shape
+        else:
+            self.height, self.width = image.shape
         pred = np.load(self.pred_path)
-        # pred[100:200, 30:150, 0] = 0.9
-        # pred[50:80, 30:150, 1] = 0.7
         pred = multichannel2rgb(pred)
-        image = np.stack([image] * 3, axis=-1) * (1 - constants.alpha) + constants.alpha * pred
+        if image.shape[-1] == 1:
+            image = np.stack([image] * 3, axis=-1)
+        image = image * (1 - constants.alpha) + constants.alpha * pred
         image = (image * 255).astype(np.uint8)
         self.image = Image.fromarray(image)
         self.draw = ImageDraw.Draw(self.image)
