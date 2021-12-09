@@ -1,13 +1,15 @@
 import os
+import pathlib
+import platform
 import tkinter as tk
 from tkinter import colorchooser, StringVar, filedialog
+
 import numpy as np
 from PIL import ImageTk, Image, ImageDraw
-import platform
-from matplotlib.pyplot import cm
-
 
 import constants
+from utils.general_utils import rgb2tk
+from utils.image_utils import normalize_image, multichannel2rgb
 
 
 class App:
@@ -32,27 +34,22 @@ class App:
                 print('Pick pool folder')
                 file_path_string = str(input())
             else:
-                file_path_string = filedialog.askdirectory()
-            self.image_paths = [os.path.join(file_path_string, file) for file in os.listdir(file_path_string) if 'image' in file]
-        self.image_path = np.random.choice(self.image_paths)
-        self.scribble_path = self.image_path.replace('image', 'scribble')
-        self.pred_path = self.image_path.replace('image', 'pred')
-
-        self.image = Image.fromarray(np.load(self.image_path))
-        self.width, self.height = self.image.size
+                file_path_string = filedialog.askdirectory(initialdir=constants.DATA_DIR)
+            self.scribble_paths = [pathlib.Path(file_path_string, file) for file in os.listdir(file_path_string) if
+                                   'scribble_' in file]
+        self.scribble_path = np.random.choice(self.scribble_paths)
+        self.image_path = pathlib.Path(self.scribble_path.parent,
+                                       self.scribble_path.name.replace('scribble_', 'image_'))
+        self.pred_path = pathlib.Path(self.scribble_path.parent, self.scribble_path.name.replace('scribble_', 'pred_'))
+        image = np.load(self.image_path)
+        self.height, self.width, n_input_chanels = image.shape
         self.annotation_img = Image.new('RGB', (self.width, self.height))
 
-        image = np.load(self.image_path)
-        image = normalize(image)
-        if image.ndim == 3:
-            self.height, self.width, _ = image.shape
-        else:
-            self.height, self.width = image.shape
         pred = np.load(self.pred_path)
         pred = multichannel2rgb(pred)
-        if image.shape[-1] == 1:
-            image = np.stack([image] * 3, axis=-1)
-        image = image * (1 - constants.alpha) + constants.alpha * pred
+        if n_input_chanels == 1:
+            image = np.concatenate([image] * 3, axis=-1)
+        image = normalize_image(image) * (1 - constants.alpha) + constants.alpha * pred
         image = (image * 255).astype(np.uint8)
         self.image = Image.fromarray(image)
         self.draw = ImageDraw.Draw(self.image)
@@ -84,7 +81,7 @@ class App:
             # self.color_button = tk.Button(self.frame_tools, text='Color: #FF0000', command=self.change_color)
             # self.color_button.pack(side='left')
 
-            self.canvas = tk.Canvas(self.window, width=self.width*4, height=self.height*4)
+            self.canvas = tk.Canvas(self.window, width=self.width * 4, height=self.height * 4)
             self.canvas.pack()
             self.canvas.bind("<Button-1>", self.get_x_and_y)
             self.canvas.bind("<B1-Motion>", self.draw_smth)
@@ -96,24 +93,15 @@ class App:
 
     def draw_smth(self, event):
         self.class_val = constants.classes_order.index(self.selected_class.get())
-        color = self.colors[self.class_val]
+        # color = self.colors[self.class_val]
         pil_color = tuple((255 * np.array(list(self.pil_colors[self.class_val]))).astype(int)[:-1])
-        if self.class_val == constants.classes[constants.FOREGROUND]:
-            color = 'blue'
-        elif self.class_val == constants.classes[constants.BACKGROUND]:
-            color = 'red'
-        else:
-            return
-        self.canvas.create_line((self.last_x, self.last_y, event.x, event.y), fill=color, width=2)
+        self.canvas.create_line((self.last_x, self.last_y, event.x, event.y), fill=rgb2tk(pil_color), width=2)
         self.annotations[self.class_val].append([event.x, event.y])
         img1 = ImageDraw.Draw(self.annotation_img)
-        img1.line((self.last_x, self.last_y, event.x, event.y), fill=pil_color, width=0)
-        img1 = ImageDraw.Draw(self.scribble)
+        # img1.line((self.last_x, self.last_y, event.x, event.y), fill=pil_color, width=0)
+        # img1 = ImageDraw.Draw(self.scribble)
         img1.line((self.last_x, self.last_y, event.x, event.y), fill=self.class_val, width=5)
         self.last_x, self.last_y = event.x, event.y
-
-        # TODO: change line width (currently - only draws the vertices)
-        # self.annotation_img[event.y, event.x, self.class_val] = 1
 
     def update_scribble(self):
         scribble = np.load(self.scribble_path)
@@ -138,9 +126,6 @@ class App:
         if color_string:
             self.color = color_string
             self.color_button['text'] = 'Color: ' + color_string
-
-    # def change_class(self, val):
-    #     self.class_val = val
 
     def change_size(self, event=None):
         try:

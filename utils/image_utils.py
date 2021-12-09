@@ -1,16 +1,7 @@
-import os
-
 import numpy as np
 
 
-def get_paths(folder, idx):
-    image_path = os.path.join(folder, 'image_' + str(idx) + '.npy')
-    pred_path = os.path.join(folder, 'pred_' + str(idx) + '.npy')
-    scribble_path = os.path.join(folder, 'scribble_' + str(idx) + '.npy')
-    return image_path, pred_path, scribble_path
-
-
-def normalize(x):
+def normalize_image(x):
     return (x - np.min(x)) / (np.max(x) - np.min(x) + 1e-9)
 
 

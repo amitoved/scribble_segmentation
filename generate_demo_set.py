@@ -37,11 +37,9 @@ if __name__ == "__main__":
         img = imageio.imread(source_file)
         target_rows, target_cols = q * (img.shape[0] // q), q * (img.shape[1] // q)
 
-        if img.ndim == 3:
-            img = img[:target_rows, :target_cols, :]
-        else:
-            img = img[:target_rows, :target_cols]
-
+        if img.ndim == 2:
+            img = img[..., None]
+        img = img[:target_rows, :target_cols, :]
         pred = np.zeros([target_rows, target_cols, n_classes])
         scribble = np.zeros([target_rows, target_cols, n_classes], dtype=np.bool)
 
