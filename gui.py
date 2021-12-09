@@ -19,7 +19,7 @@ class App:
         self.figure = 'rectangle'
         self.size = 5
         self.class_val = None
-        self.colors = constants.TK_COLORS[0:: len(constants.TK_COLORS) // len(constants.classes_order)]
+        # self.colors = constants.TK_COLORS[0:: len(constants.TK_COLORS) // len(constants.classes_order)]
         self.pil_colors = constants.class_colors
         self.annotations = {val: [] for val in constants.classes.values()}
         self.window = tk.Tk()
@@ -47,9 +47,10 @@ class App:
 
         pred = np.load(self.pred_path)
         pred = multichannel2rgb(pred)
+        image = image / np.max(image)
         if n_input_chanels == 1:
             image = np.concatenate([image] * 3, axis=-1)
-        image = normalize_image(image) * (1 - constants.alpha) + constants.alpha * pred
+        image = image * (1 - constants.alpha) + constants.alpha * pred
         image = (image * 255).astype(np.uint8)
         self.image = Image.fromarray(image)
         self.draw = ImageDraw.Draw(self.image)
@@ -59,15 +60,6 @@ class App:
         if not update:
             self.frame_tools = tk.Frame(self.window)
             self.frame_tools.pack()
-            #
-            # self.background_button = tk.Button(self.frame_tools, text=constants.BACKGROUND,
-            #                                    command=lambda: self.change_class(
-            #                                        constants.classes[constants.BACKGROUND]))
-            # self.background_button.pack(side='left')
-            # self.foreground_button = tk.Button(self.frame_tools, text=constants.FOREGROUND,
-            #                                    command=lambda: self.change_class(
-            #                                        constants.classes[constants.FOREGROUND]))
-            # self.foreground_button.pack(side='left')
             self.selected_class = StringVar()
             self.option_menu = tk.OptionMenu(self.frame_tools, self.selected_class, *constants.classes_order)
             self.option_menu.pack(side='left')
@@ -81,7 +73,7 @@ class App:
             # self.color_button = tk.Button(self.frame_tools, text='Color: #FF0000', command=self.change_color)
             # self.color_button.pack(side='left')
 
-            self.canvas = tk.Canvas(self.window, width=self.width * 4, height=self.height * 4)
+            self.canvas = tk.Canvas(self.window, width=self.width, height=self.height)
             self.canvas.pack()
             self.canvas.bind("<Button-1>", self.get_x_and_y)
             self.canvas.bind("<B1-Motion>", self.draw_smth)
@@ -98,9 +90,10 @@ class App:
         self.canvas.create_line((self.last_x, self.last_y, event.x, event.y), fill=rgb2tk(pil_color), width=2)
         self.annotations[self.class_val].append([event.x, event.y])
         img1 = ImageDraw.Draw(self.annotation_img)
+
         # img1.line((self.last_x, self.last_y, event.x, event.y), fill=pil_color, width=0)
-        # img1 = ImageDraw.Draw(self.scribble)
         img1.line((self.last_x, self.last_y, event.x, event.y), fill=self.class_val, width=5)
+        img1 = ImageDraw.Draw(self.scribble)
         self.last_x, self.last_y = event.x, event.y
 
     def update_scribble(self):

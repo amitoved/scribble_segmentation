@@ -7,7 +7,7 @@ import numpy as np
 from tqdm import tqdm
 
 from constants import DATA_DIR, n_classes
-from utils.utils import generate_pool_paths
+from utils.general_utils import generate_pool_paths
 
 
 def get_files(folder, extensions):
