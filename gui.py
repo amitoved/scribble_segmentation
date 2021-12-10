@@ -55,6 +55,11 @@ class App:
             self.selected_class = StringVar()
             self.option_menu = tk.OptionMenu(self.frame_tools, self.selected_class, *constants.classes_order)
             self.option_menu.pack(side='left')
+            self.brush_size = StringVar()
+            self.brush_size.set(constants.BRUSH_SIZES[2])
+            self.option_menu = tk.OptionMenu(self.frame_tools, self.brush_size, *constants.BRUSH_SIZES)
+            self.option_menu.pack(side='left')
+
             self.save_button = tk.Button(self.frame_tools, text='save', command=self.save)
             self.save_button.pack(side='left')
 
@@ -79,11 +84,12 @@ class App:
         self.class_val = constants.classes_order.index(self.selected_class.get())
         pil_rgb = rgb2tk(tuple((255 * np.array(list(self.pil_colors[self.class_val]))).astype(int)[:-1]))
 
-        self.canvas.create_line((self.last_x, self.last_y, event.x, event.y), fill=pil_rgb, width=2)
+        brush_size = int(self.brush_size.get())
+        self.canvas.create_line((self.last_x, self.last_y, event.x, event.y), fill=pil_rgb, width=brush_size)
         self.annotations[self.class_val].append([event.x, event.y])
 
         img1 = ImageDraw.Draw(self.scribble)
-        img1.line((self.last_x, self.last_y, event.x, event.y), fill=self.class_val, width=5)
+        img1.line((self.last_x, self.last_y, event.x, event.y), fill=self.class_val, width=brush_size)
         self.last_x, self.last_y = event.x, event.y
 
     def update_scribble(self):

@@ -24,7 +24,7 @@ if __name__ == "__main__":
     if not os.path.exists(pool_folder):
         os.mkdir(pool_folder)
     source_files = get_files(folder=source_folder, extensions=['*.png', '*.jpg'])
-    q = 32
+    q = 256
 
     for source_file in tqdm(source_files):
         base = os.path.basename(source_file)
