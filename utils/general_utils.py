@@ -3,13 +3,22 @@ import platform
 from tkinter import filedialog
 
 
-def folder_picker(initialdir=None):
+def folder_picker(initialdir=None, title=None):
     if 'macOS' in platform.platform():
         print('Type folder path')
         folder = str(input())
     else:
-        folder = filedialog.askdirectory(initialdir=initialdir)
+        folder = filedialog.askdirectory(initialdir=initialdir, title=title)
     return folder
+
+
+def file_picker(initialdir=None, title=None):
+    if 'macOS' in platform.platform():
+        print('Type file path')
+        file_path = str(input())
+    else:
+        file_path = filedialog.askopenfilename(initialdir=initialdir, title=title)
+    return file_path
 
 
 def generate_pool_paths(folder, suffix):
