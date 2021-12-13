@@ -5,10 +5,10 @@ import imageio
 import numpy as np
 from tqdm import tqdm
 
-from constants import DATA_DIR, n_classes
+from constants import DATA_DIR, n_classes, PRIORITY_DF
 from utils.general_utils import generate_pool_paths, folder_picker, file_picker
 from utils.image_utils import normalize_image
-
+import pandas as pd
 
 def get_files(folder, extensions):
     from pathlib import Path
@@ -36,6 +36,7 @@ if __name__ == "__main__":
     if not os.path.exists(pool_folder):
         os.mkdir(pool_folder)
     q = 32
+    df = []
     if is_folder:
         for source_file in tqdm(source_files):
             base = os.path.basename(source_file)
@@ -50,6 +51,7 @@ if __name__ == "__main__":
             pred = np.zeros([target_rows, target_cols, n_classes])
             scribble = np.zeros([target_rows, target_cols, n_classes], dtype=bool)
 
+            df.append([image_path, 1.])
             np.save(image_path, img)
             np.save(pred_path, pred)
             np.save(scribble_path, scribble)
@@ -64,8 +66,11 @@ if __name__ == "__main__":
             scribble = np.zeros([target_rows, target_cols, n_classes], dtype=bool)
             image_path, pred_path, scribble_path = generate_pool_paths(pool_folder, idx)
 
+            df.append([image_path, 1.])
             np.save(image_path, img)
             np.save(pred_path, pred)
             np.save(scribble_path, scribble)
 
-        print('Done')
+    df = pd.DataFrame.from_records(df, columns=['paths', 'p'])
+    df.to_csv(PRIORITY_DF)
+    print('Done')
