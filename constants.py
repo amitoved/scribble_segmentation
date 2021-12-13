@@ -8,12 +8,16 @@ PROJECT_DIR = os.path.realpath(os.path.dirname(_constants_path))
 DATA_DIR = os.path.join(PROJECT_DIR, 'data')
 
 BACKGROUND = 'background'
-FOREGROUND = 'foreground'
+SPINE = 'spine'
+LIVER = 'liver'
+PELVIS = 'pelvis'
 
-classes_order = [BACKGROUND, FOREGROUND]
+classes_order = [BACKGROUND, SPINE, LIVER, PELVIS]
 
 classes = {BACKGROUND: 0,
-           FOREGROUND: 1}
+           SPINE: 1,
+           LIVER: 2,
+           PELVIS: 3}
 
 n_classes = len(classes.keys())
 alpha = 0.5

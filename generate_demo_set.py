@@ -54,7 +54,7 @@ if __name__ == "__main__":
             np.save(pred_path, pred)
             np.save(scribble_path, scribble)
     else:
-        for idx, img in tqdm(enumerate(vol)):
+        for idx, img in tqdm(enumerate(vol[::2])):
             target_rows, target_cols = q * (img.shape[0] // q), q * (img.shape[1] // q)
             img = img[:target_rows, :target_cols]
             img = np.clip(img, -200, 1000)

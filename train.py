@@ -54,7 +54,7 @@ pred_paths = [pathlib.Path(image_path.parent, image_path.name.replace('image_', 
               image_paths]
 
 while True:
-    model.fit(training_generator, steps_per_epoch=100, epochs=10)
+    model.fit(training_generator, steps_per_epoch=100, epochs=5)
     for image_path, pred_path in tqdm(zip(image_paths, pred_paths)):
         image = np.load(image_path)
         pred = model.predict(image[None, ...])[0]
