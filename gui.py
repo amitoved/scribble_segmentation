@@ -40,9 +40,8 @@ class App:
         pred = np.load(self.pred_path)
         pred = multichannel2rgb(pred)
 
-        colormap = generate_colormap(constants.n_classes, pred.shape[0], int(pred.shape[0] / 5))
-        colormap = multichannel2rgb(colormap)
-
+        self.colormap_np = generate_colormap(constants.n_classes, pred.shape[0], int(pred.shape[0] / 5))
+        self.colormap = ImageTk.PhotoImage(Image.fromarray((255 * self.colormap_np).astype('uint8')))
         image = image / np.max(image)
         if n_input_chanels == 1:
             image = np.concatenate([image] * 3, axis=-1)
@@ -75,7 +74,11 @@ class App:
             # self.color_button.pack(side='left')
 
             self.canvas = tk.Canvas(self.window, width=self.width, height=self.height)
-            self.canvas.pack()
+            self.canvas.pack(side='left')
+            self.colormap_canvas = tk.Canvas(self.window, width=self.colormap_np.shape[1], height=self.colormap_np.shape[0])
+            self.colormap_canvas.pack(side='right')
+            self.colormap_canvas.create_image(0, 0, image=self.colormap, anchor=tk.NW)
+
             self.canvas.bind("<Button-1>", self.get_x_and_y)
             self.canvas.bind("<B1-Motion>", self.draw_smth)
 

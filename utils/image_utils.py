@@ -28,4 +28,5 @@ def generate_colormap(n_classes, h, w):
     v = np.zeros((len(colormap), n_classes))
     for i in range(len(colormap)):
         v[i, colormap[i]] = 1
-    return np.stack([v]*w, axis=1)
+
+    return multichannel2rgb(np.stack([v]*w, axis=1))
