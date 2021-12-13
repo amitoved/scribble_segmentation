@@ -8,7 +8,7 @@ from PIL import ImageTk, Image, ImageDraw
 
 import constants
 from utils.general_utils import rgb2tk, folder_picker
-from utils.image_utils import multichannel2rgb
+from utils.image_utils import multichannel2rgb, generate_colormap
 
 
 class App:
@@ -39,6 +39,10 @@ class App:
 
         pred = np.load(self.pred_path)
         pred = multichannel2rgb(pred)
+
+        colormap = generate_colormap(constants.n_classes, pred.shape[0], int(pred.shape[0] / 5))
+        colormap = multichannel2rgb(colormap)
+
         image = image / np.max(image)
         if n_input_chanels == 1:
             image = np.concatenate([image] * 3, axis=-1)

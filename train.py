@@ -9,7 +9,7 @@ from tensorflow.keras import optimizers
 from tqdm import tqdm
 
 import constants
-from models.architectures import unet2d_8
+from models.architectures import unet2d_8, unet2d_5
 from utils.general_utils import folder_picker
 from utils.image_utils import normalize_image
 
@@ -67,7 +67,7 @@ def weighted_cce(y_true, y_pred):
 training_generator = data_generator(pool_folder, batch_size=1)
 x, y = next(training_generator)
 n_input_channels = x.shape[-1]
-model = unet2d_8(n_input_channels)
+model = unet2d_5(n_input_channels)
 model.compile(loss=[weighted_cce], optimizer=optimizers.Adam(1e-3))
 
 image_paths = [pathlib.Path(pool_folder, file) for file in os.listdir(pool_folder) if 'image_' in file]
@@ -75,7 +75,7 @@ pred_paths = [pathlib.Path(image_path.parent, image_path.name.replace('image_', 
               image_paths]
 
 while True:
-    model.fit(training_generator, steps_per_epoch=100, epochs=10)
+    model.fit(training_generator, steps_per_epoch=100, epochs=5)
     df = []
     for image_path, pred_path in tqdm(zip(image_paths, pred_paths)):
         image = np.load(image_path)

@@ -21,3 +21,11 @@ def multichannel2rgb(x):
     rgb = np.stack([np.sum(x * f, axis=-1) for f in filters], axis=-1)
     rgb = rgb / (np.max(rgb) + 1e-9)
     return rgb
+
+
+def generate_colormap(n_classes, h, w):
+    colormap = np.linspace(0, n_classes, h, dtype=int, endpoint=False)
+    v = np.zeros((len(colormap), n_classes))
+    for i in range(len(colormap)):
+        v[i, colormap[i]] = 1
+    return np.stack([v]*w, axis=1)
