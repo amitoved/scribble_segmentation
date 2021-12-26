@@ -22,6 +22,8 @@ class App:
         self.pil_colors = constants.class_colors
         self.annotations = {val: [] for val in constants.classes.values()}
         self.window = tk.Tk()
+
+
         self.selecting_file()
         self.window.mainloop()
 
@@ -35,13 +37,29 @@ class App:
                                        self.scribble_path.name.replace('scribble_', 'image_'))
         self.pred_path = pathlib.Path(self.scribble_path.parent, self.scribble_path.name.replace('scribble_', 'pred_'))
         image = np.load(self.image_path)
-        self.height, self.width, n_input_chanels = image.shape
-        self.annotation_img = Image.new('RGB', (self.width, self.height))
-
         pred = np.load(self.pred_path)
         pred = multichannel2rgb(pred)
+        image = image / np.max(image)
+        self.height, self.width, n_input_chanels = image.shape
 
+        if n_input_chanels == 1:
+            image = np.concatenate([image] * 3, axis=-1)
+        image = image * (1 - constants.alpha) + constants.alpha * pred
+        image = (image * 255).astype(np.uint8)
+        self.image = Image.fromarray(image)
         self.colormap_np = generate_colormap(constants.n_classes, pred.shape[0], int(pred.shape[0] / 5))
+
+        screen_w, screen_h = self.window.winfo_screenwidth(), self.window.winfo_screenheight()
+        dim = np.argmin(np.array([screen_h, screen_w]) - 1.1 * (np.array(image.shape[:2]) + np.array(self.colormap_np.shape[:2])))
+        self.factor = np.array([screen_h, screen_w])[dim] / (1.1 * (np.array(image.shape[:2]) + np.array(self.colormap_np.shape[:2]))[dim])
+        self.resized_image = self.image.resize((int(image.shape[1] * self.factor), int(image.shape[0] * self.factor)))
+        self.photo = ImageTk.PhotoImage(image=self.resized_image)
+
+        self.height = int(self.height * self.factor)
+        self.width = int(self.width * self.factor)
+        self.annotation_img = Image.new('RGB', (self.width, self.height))
+
+
         fig = plt.figure()
         plt.imshow(self.colormap_np)
         plt.yticks(
@@ -52,14 +70,8 @@ class App:
         self.colormap_np = self.colormap_np.reshape(fig.canvas.get_width_height()[::-1] + (3,))
         self.colormap_np = self.colormap_np[30:-30, 200:-200, :]
         self.colormap = ImageTk.PhotoImage(Image.fromarray((self.colormap_np).astype('uint8')))
-        image = image / np.max(image)
-        if n_input_chanels == 1:
-            image = np.concatenate([image] * 3, axis=-1)
-        image = image * (1 - constants.alpha) + constants.alpha * pred
-        image = (image * 255).astype(np.uint8)
-        self.image = Image.fromarray(image)
+
         self.draw = ImageDraw.Draw(self.image)
-        self.photo = ImageTk.PhotoImage(image=self.image)
         self.scribble = Image.fromarray(255 * np.ones(list(pred.shape[:2])).astype(np.uint8))
 
         if not update:
@@ -94,6 +106,8 @@ class App:
 
         self.canvas.create_image(0, 0, image=self.photo, anchor=tk.NW)
         self.colormap_canvas.create_image(0, 0, image=self.colormap, anchor=tk.NW)
+
+        self.window.geometry(f'{screen_w}x{screen_h}')
 
     def get_x_and_y(self, event):
         self.last_x, self.last_y = event.x, event.y
