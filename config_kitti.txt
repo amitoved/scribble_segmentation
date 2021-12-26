@@ -1,0 +1,4 @@
+batch = 1
+lr = 1e-3
+epochs = 10
+spe = 2

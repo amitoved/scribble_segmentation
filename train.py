@@ -7,6 +7,7 @@ import tensorflow as tf
 from tensorflow.keras import backend as K
 from tensorflow.keras import optimizers
 from tqdm import tqdm
+import configargparse
 
 import constants
 from models.architectures import unet2d_8, unet2d_5
@@ -32,7 +33,7 @@ def priority_metric(y_pred):
     return p
 
 
-def data_generator(pool_folder, batch_size=1):
+def data_generator(batch_size=1):
     # image_paths = [pathlib.Path(pool_folder, file) for file in os.listdir(pool_folder) if 'image_' in file]
     df = pd.read_csv(constants.PRIORITY_DF)
     image_paths = list(df['paths'])
@@ -67,24 +68,40 @@ def weighted_cce(y_true, y_pred):
     return loss
 
 
-training_generator = data_generator(pool_folder, batch_size=1)
-x, y = next(training_generator)
-n_input_channels = x.shape[-1]
-model = unet2d_5(n_input_channels)
-model.compile(loss=[weighted_cce], optimizer=optimizers.Adam(1e-3))
+def config_parser():
 
-image_paths = [pathlib.Path(pool_folder, file) for file in os.listdir(pool_folder) if 'image_' in file]
-pred_paths = [pathlib.Path(image_path.parent, image_path.name.replace('image_', 'pred_')) for image_path in
-              image_paths]
+    parser = configargparse.ArgumentParser()
+    parser.add_argument('--config', is_config_file=True,
+                        help='config file path')
+    parser.add_argument('--epochs', type=int, help='number of epochs')
+    parser.add_argument('--spe', type=int, help='steps per epoch')
+    parser.add_argument('--batch', type=int, help='batchsize')
+    parser.add_argument('--lr', type=float, help='learning rate')
+    return parser
 
-while True:
-    model.fit(training_generator, steps_per_epoch=2, epochs=5)
-    df = []
-    for image_path, pred_path in tqdm(zip(image_paths, pred_paths)):
-        image = np.load(image_path)
-        pred = model.predict(image[None, ...])[0]
-        p = priority_metric(pred)
-        df.append([image_path, p])
-        np.save(arr=pred, file=pred_path)
-    df = pd.DataFrame.from_records(df, columns=['paths', 'p'])
-    df.to_csv(constants.PRIORITY_DF)
+
+if __name__ == '__main__':
+    parser = config_parser()
+    args = parser.parse_args()
+
+    training_generator = data_generator(batch_size=args.batch)
+    x, y = next(training_generator)
+    n_input_channels = x.shape[-1]
+    model = unet2d_5(n_input_channels)
+    model.compile(loss=[weighted_cce], optimizer=optimizers.Adam(args.lr))
+
+    image_paths = [pathlib.Path(pool_folder, file) for file in os.listdir(pool_folder) if 'image_' in file]
+    pred_paths = [pathlib.Path(image_path.parent, image_path.name.replace('image_', 'pred_')) for image_path in
+                  image_paths]
+
+    while True:
+        model.fit(training_generator, steps_per_epoch=args.spe, epochs=args.epochs)
+        df = []
+        for image_path, pred_path in tqdm(zip(image_paths, pred_paths)):
+            image = np.load(image_path)
+            pred = model.predict(image[None, ...])[0]
+            p = priority_metric(pred)
+            df.append([image_path, p])
+            np.save(arr=pred, file=pred_path)
+        df = pd.DataFrame.from_records(df, columns=['paths', 'p'])
+        df.to_csv(constants.PRIORITY_DF)

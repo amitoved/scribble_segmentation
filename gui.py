@@ -2,7 +2,7 @@ import os
 import pathlib
 import tkinter as tk
 from tkinter import colorchooser, StringVar
-
+import configargparse
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import ImageTk, Image, ImageDraw
@@ -139,5 +139,5 @@ class App:
         except Exceptions as ex:
             print(ex)
 
-
-App()
+if __name__ == '__main__':
+    App()
