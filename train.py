@@ -25,7 +25,7 @@ else:
 
 def priority_metric(y_pred):
     p = np.sqrt(np.sum(y_pred[1:, :, :] - y_pred[:-1, :, :]) ** 2 + np.sum(
-        y_pred[:, 1:, :] - y_pred[:, :-1, :]) ** 2) // np.prod(y_pred.shape)
+        y_pred[:, 1:, :] - y_pred[:, :-1, :]) ** 2) / np.prod(y_pred.shape)
     return p
 
 
@@ -75,13 +75,13 @@ pred_paths = [pathlib.Path(image_path.parent, image_path.name.replace('image_', 
               image_paths]
 
 while True:
-    model.fit(training_generator, steps_per_epoch=100, epochs=5)
+    model.fit(training_generator, steps_per_epoch=2, epochs=5)
     df = []
     for image_path, pred_path in tqdm(zip(image_paths, pred_paths)):
         image = np.load(image_path)
         pred = model.predict(image[None, ...])[0]
         p = priority_metric(pred)
         df.append([image_path, p])
-        df = pd.DataFrame.from_records(df, columns=['paths', 'p'])
-        df.to_csv(constants.PRIORITY_DF)
         np.save(arr=pred, file=pred_path)
+    df = pd.DataFrame.from_records(df, columns=['paths', 'p'])
+    df.to_csv(constants.PRIORITY_DF)
