@@ -3,12 +3,13 @@ import pathlib
 
 import imageio
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 
 from constants import DATA_DIR, n_classes, PRIORITY_DF
 from utils.general_utils import generate_pool_paths, folder_picker, file_picker
 from utils.image_utils import normalize_image
-import pandas as pd
+
 
 def get_files(folder, extensions):
     from pathlib import Path
@@ -30,6 +31,7 @@ if __name__ == "__main__":
 
         if ext == '.npy':
             vol = np.load(source_file)
+            # vol = vol[430:650]
         is_folder = False
     pool_folder = os.path.join(DATA_DIR, pool_name)
 

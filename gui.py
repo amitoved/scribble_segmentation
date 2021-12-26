@@ -2,6 +2,7 @@ import os
 import pathlib
 import tkinter as tk
 from tkinter import colorchooser, StringVar
+
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import ImageTk, Image, ImageDraw
@@ -43,8 +44,9 @@ class App:
         self.colormap_np = generate_colormap(constants.n_classes, pred.shape[0], int(pred.shape[0] / 5))
         fig = plt.figure()
         plt.imshow(self.colormap_np)
-        plt.yticks(self.colormap_np.shape[0] / len(constants.classes_order) * np.arange(1, 1 +len(constants.classes_order)), constants.classes_order[::-1], rotation=-90,
-                   va="bottom")
+        plt.yticks(
+            self.colormap_np.shape[0] / len(constants.classes_order) * np.arange(1, 1 + len(constants.classes_order)),
+            constants.classes_order, rotation=-90, va="bottom")
         fig.canvas.draw()
         self.colormap_np = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
         self.colormap_np = self.colormap_np.reshape(fig.canvas.get_width_height()[::-1] + (3,))
@@ -83,7 +85,8 @@ class App:
 
             self.canvas = tk.Canvas(self.window, width=self.width, height=self.height)
             self.canvas.pack(side='left')
-            self.colormap_canvas = tk.Canvas(self.window, width=self.colormap_np.shape[1], height=self.colormap_np.shape[0])
+            self.colormap_canvas = tk.Canvas(self.window, width=self.colormap_np.shape[1],
+                                             height=self.colormap_np.shape[0])
             self.colormap_canvas.pack(side='right')
 
             self.canvas.bind("<Button-1>", self.get_x_and_y)

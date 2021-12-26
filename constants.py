@@ -10,18 +10,12 @@ DATA_DIR = os.path.join(PROJECT_DIR, 'data')
 PRIORITY_DF = os.path.join(DATA_DIR, 'priorities.csv')
 
 BACKGROUND = 'background'
-SPINE = 'spine'
-LIVER = 'liver'
-PELVIS = 'pelvis'
+FOREGROUND = 'foreground'
 
-classes_order = [BACKGROUND, SPINE, LIVER, PELVIS]
-
-classes = {BACKGROUND: 0,
-           SPINE: 1,
-           LIVER: 2,
-           PELVIS: 3}
+classes_order = [BACKGROUND, FOREGROUND]
+classes = {cls: i for i, cls in enumerate(classes_order)}
 
 n_classes = len(classes.keys())
 alpha = 0.5
 class_colors = cm.rainbow(np.linspace(0, 1, len(classes_order)))
-BRUSH_SIZES = ['1', '5', '10', '20', '50']
+BRUSH_SIZES = ['2', '5', '10', '15', '30']

@@ -16,12 +16,15 @@ from utils.image_utils import normalize_image
 pool_folder = folder_picker(initialdir=constants.DATA_DIR)
 
 import platform
+
 if 'macOS' in platform.platform():
     os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-if tf.test.gpu_device_name():
-    print('GPU found')
-else:
-    print("No GPU found")
+
+
+# if tf.test.gpu_device_name():
+#     print('GPU found')
+# else:
+#     print("No GPU found")
 
 def priority_metric(y_pred):
     p = np.sqrt(np.sum(y_pred[1:, :, :] - y_pred[:-1, :, :]) ** 2 + np.sum(
