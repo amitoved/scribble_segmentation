@@ -35,8 +35,8 @@ class App:
             self.scribble_paths = [pathlib.Path(self.pool_folder, file) for file in os.listdir(self.pool_folder) if
                                    'scribble_' in file]
         self.scribble_path = np.random.choice(self.scribble_paths)
-        self.image_path = pathlib.Path(self.scribble_path.parent,
-                                       self.scribble_path.name.replace('scribble_', 'image_'))
+        self.image_path = pathlib.Path(self.scribble_path.parent, self.scribble_path.name.replace('scribble_', 'image_'))
+        self.gt_path = pathlib.Path(self.scribble_path.parent, self.scribble_path.name.replace('scribble_', 'gt_'))
         self.pred_path = pathlib.Path(self.scribble_path.parent, self.scribble_path.name.replace('scribble_', 'pred_'))
         image = np.load(self.image_path)
         pred = np.load(self.pred_path)

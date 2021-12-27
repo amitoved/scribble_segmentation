@@ -23,9 +23,10 @@ def file_picker(initialdir=None, title=None):
 
 def generate_pool_paths(folder, suffix):
     image_path = os.path.join(folder, 'image_' + str(suffix) + '.npy')
+    gt_path = os.path.join(folder, 'gt_' + str(suffix) + '.npy')
     pred_path = os.path.join(folder, 'pred_' + str(suffix) + '.npy')
     scribble_path = os.path.join(folder, 'scribble_' + str(suffix) + '.npy')
-    return image_path, pred_path, scribble_path
+    return image_path, gt_path, pred_path, scribble_path
 
 
 def rgb2tk(rgb):

@@ -4,11 +4,11 @@ import pathlib
 import imageio
 import numpy as np
 import pandas as pd
+from pydicom import dcmread
 from tqdm import tqdm
 
-from constants import DATA_DIR, n_classes, PRIORITY_DF
-from utils.general_utils import generate_pool_paths, folder_picker, file_picker
-from utils.image_utils import normalize_image
+from constants import DATA_DIR, n_classes
+from utils.general_utils import generate_pool_paths, folder_picker
 
 
 def get_files(folder, extensions):
@@ -20,59 +20,48 @@ def get_files(folder, extensions):
 
 
 if __name__ == "__main__":
-    source_file = file_picker(title='Choose an *.npy file')
-    if source_file == '':
-        source_folder = folder_picker(title='Choose a folder containing images')
-        source_files = get_files(folder=source_folder, extensions=['*.png', '*.jpg'])
-        pool_name = os.path.basename(source_folder)
-        is_folder = True
-    else:
-        pool_name, ext = os.path.splitext(pathlib.Path(source_file).name)
-
-        if ext == '.npy':
-            vol = np.load(source_file)
-            # vol = vol[430:650]
-        is_folder = False
+    q = 32
+    source_folder = folder_picker(title='Choose a folder containing images')
+    source_files = get_files(folder=source_folder, extensions=['*.png', '*.jpg', '*.dcm'])
+    pool_name = os.path.basename(source_folder)
     pool_folder = os.path.join(DATA_DIR, pool_name)
 
     if not os.path.exists(pool_folder):
         os.mkdir(pool_folder)
-    q = 32
     df = []
-    if is_folder:
-        for source_file in tqdm(source_files):
-            base = os.path.basename(source_file)
-            basename, ext = os.path.splitext(base)
-            image_path, pred_path, scribble_path = generate_pool_paths(pool_folder, basename)
+    for source_file in tqdm(source_files):
+        source_file = str(pathlib.Path(source_file))
+        base = os.path.basename(source_file)
+        basename, ext = os.path.splitext(base)
+        image_path, gt_path, pred_path, scribble_path = generate_pool_paths(pool_folder, basename)
+        if ext == '.dcm':
+            dcm = dcmread(source_file)
+            img = dcm.pixel_array
+        elif ext in ['.png', 'jpg']:
             img = imageio.imread(source_file)
-            target_rows, target_cols = q * (img.shape[0] // q), q * (img.shape[1] // q)
+        target_rows, target_cols = q * (img.shape[0] // q), q * (img.shape[1] // q)
 
-            if img.ndim == 2:
-                img = img[..., None]
-            img = img[:target_rows, :target_cols, :]
-            pred = np.zeros([target_rows, target_cols, n_classes])
-            scribble = np.zeros([target_rows, target_cols, n_classes], dtype=bool)
-
-            df.append([image_path, 1.])
-            np.save(image_path, img)
-            np.save(pred_path, pred)
-            np.save(scribble_path, scribble)
-    else:
-        for idx, img in tqdm(enumerate(vol[::2])):
-            target_rows, target_cols = q * (img.shape[0] // q), q * (img.shape[1] // q)
-            img = img[:target_rows, :target_cols]
-            img = np.clip(img, -200, 1000)
-            img = normalize_image(img)
+        if img.ndim == 2:
             img = img[..., None]
-            pred = np.zeros([target_rows, target_cols, n_classes])
-            scribble = np.zeros([target_rows, target_cols, n_classes], dtype=bool)
-            image_path, pred_path, scribble_path = generate_pool_paths(pool_folder, idx)
+        img = img[:target_rows, :target_cols, :]
+        # TODO: remove when GT exists
+        gt = np.zeros([target_rows, target_cols, n_classes])
+        gt[:10, :5, 0] = 1
+        gt[:10, 10:15, 1] = 1
+        pred = np.zeros([target_rows, target_cols, n_classes])
+        scribble = np.zeros([target_rows, target_cols, n_classes], dtype=bool)
 
-            df.append([image_path, 1.])
-            np.save(image_path, img)
-            np.save(pred_path, pred)
-            np.save(scribble_path, scribble)
+        df.append([image_path, 1.])
+        np.save(image_path, img)
+        np.save(gt_path, gt)
+        np.save(pred_path, pred)
+        np.save(scribble_path, scribble)
 
-    df = pd.DataFrame.from_records(df, columns=['paths', 'p'])
-    df.to_csv(PRIORITY_DF)
+    df = pd.DataFrame.from_records(df, columns=['paths', 'score'])
+    df_path = os.path.join(pool_folder, 'priorities.csv')
+    df.to_csv(df_path)
+
+    timer_path = os.path.join(pool_folder, 'timer.txt')
+    with open(timer_path, 'w') as f:
+        f.write('0.0')
     print('Done')

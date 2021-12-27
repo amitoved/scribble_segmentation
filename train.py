@@ -103,5 +103,5 @@ if __name__ == '__main__':
             p = priority_metric(pred)
             df.append([image_path, p])
             np.save(arr=pred, file=pred_path)
-        df = pd.DataFrame.from_records(df, columns=['paths', 'p'])
+        df = pd.DataFrame.from_records(df, columns=['paths', 'score'])
         df.to_csv(constants.PRIORITY_DF)
