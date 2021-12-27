@@ -1,15 +1,16 @@
 import os
 import pathlib
 import tkinter as tk
+from time import time
 from tkinter import colorchooser, StringVar
+
 import configargparse
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import ImageTk, Image, ImageDraw
-
-from time import time
-import constants
 from skimage.transform import resize
+
+import constants
 from utils.general_utils import rgb2tk, folder_picker
 from utils.image_utils import multichannel2rgb, generate_colormap
 
@@ -26,6 +27,8 @@ class App:
         self.window = tk.Tk()
         self.annotate_gt = args.annotate_gt
 
+        screen_w, screen_h = self.window.winfo_screenwidth(), self.window.winfo_screenheight()
+        self.window.geometry(f'{screen_w}x{screen_h}')
         self.selecting_file()
         self.window.mainloop()
 
@@ -35,7 +38,8 @@ class App:
             self.scribble_paths = [pathlib.Path(self.pool_folder, file) for file in os.listdir(self.pool_folder) if
                                    'scribble_' in file]
         self.scribble_path = np.random.choice(self.scribble_paths)
-        self.image_path = pathlib.Path(self.scribble_path.parent, self.scribble_path.name.replace('scribble_', 'image_'))
+        self.image_path = pathlib.Path(self.scribble_path.parent,
+                                       self.scribble_path.name.replace('scribble_', 'image_'))
         self.gt_path = pathlib.Path(self.scribble_path.parent, self.scribble_path.name.replace('scribble_', 'gt_'))
         self.pred_path = pathlib.Path(self.scribble_path.parent, self.scribble_path.name.replace('scribble_', 'pred_'))
         if self.annotate_gt:
@@ -53,7 +57,7 @@ class App:
         image = image * (1 - constants.alpha) + constants.alpha * pred
         image = (image * 255).astype(np.uint8)
         self.image = Image.fromarray(image)
-        self.colormap_np = generate_colormap(constants.n_classes, pred.shape[0], int(pred.shape[0] / 5))
+        self.colormap_np = generate_colormap(constants.n_classes, pred.shape[0], int(pred.shape[0] / 10))
         fig = plt.figure()
         plt.imshow(self.colormap_np)
         plt.yticks(
@@ -65,18 +69,17 @@ class App:
         self.colormap_np = self.colormap_np[30:-30, 200:-200, :]
         # self.colormap_np = 255 * resize(self.colormap_np, (image.shape[0], image.shape[1] // 10))
 
-
         screen_w, screen_h = self.window.winfo_screenwidth(), self.window.winfo_screenheight()
-        dim = np.argmin(np.array([screen_h, screen_w]) - 1.1 * (np.array(image.shape[:2]) + np.array(self.colormap_np.shape[:2])*np.array([0,1])))
-        self.factor = np.array([screen_h, screen_w])[dim] / (1.1 * (np.array(image.shape[:2]) + np.array(self.colormap_np.shape[:2])*np.array([0,1]))[dim])
+        dim = np.argmin(np.array([screen_h, screen_w]) - 1.1 * (
+                np.array(image.shape[:2]) + np.array(self.colormap_np.shape[:2]) * np.array([0, 1])))
+        self.factor = np.array([screen_h, screen_w])[dim] / (
+                1.1 * (np.array(image.shape[:2]) + np.array(self.colormap_np.shape[:2]) * np.array([0, 1]))[dim])
         self.resized_image = self.image.resize((int(image.shape[1] * self.factor), int(image.shape[0] * self.factor)))
         self.photo = ImageTk.PhotoImage(image=self.resized_image)
 
         self.height = int(self.height_o * self.factor)
         self.width = int(self.width_o * self.factor)
         self.annotation_img = Image.new('RGB', (self.width, self.height))
-
-
 
         self.colormap = ImageTk.PhotoImage(Image.fromarray((self.colormap_np).astype('uint8')))
 
@@ -133,7 +136,6 @@ class App:
         img1.line((self.last_x, self.last_y, event.x, event.y), fill=self.class_val, width=brush_size)
         self.last_x, self.last_y = event.x, event.y
 
-
     def update_scribble(self):
         scribble = np.load(self.scribble_path)
         current_scribble = np.array(self.scribble)
@@ -154,7 +156,6 @@ class App:
             f.write(f'{self.scribble_path},{time() - self.start_time}\n')
         self.selecting_file(update=True)
 
-
     def change_color(self):
         rgb, color_string = colorchooser.askcolor(initialcolor=self.color)
         if color_string:
@@ -169,7 +170,6 @@ class App:
 
 
 def config_parser():
-
     parser = configargparse.ArgumentParser(ignore_unknown_config_file_keys=True)
     parser.add_argument('--config', is_config_file=True,
                         help='config file path')
@@ -178,6 +178,7 @@ def config_parser():
     # parser.add_argument('--batch', type=int, help='batchsize')
     # parser.add_argument('--lr', type=float, help='learning rate')
     parser.add_argument('--annotate_gt', action='store_true')
+
     return parser
 
 
