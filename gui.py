@@ -50,18 +50,6 @@ class App:
         image = (image * 255).astype(np.uint8)
         self.image = Image.fromarray(image)
         self.colormap_np = generate_colormap(constants.n_classes, pred.shape[0], int(pred.shape[0] / 5))
-
-        screen_w, screen_h = self.window.winfo_screenwidth(), self.window.winfo_screenheight()
-        dim = np.argmin(np.array([screen_h, screen_w]) - 1.1 * (np.array(image.shape[:2]) + np.array(self.colormap_np.shape[:2])))
-        self.factor = np.array([screen_h, screen_w])[dim] / (1.1 * (np.array(image.shape[:2]) + np.array(self.colormap_np.shape[:2]))[dim])
-        self.resized_image = self.image.resize((int(image.shape[1] * self.factor), int(image.shape[0] * self.factor)))
-        self.photo = ImageTk.PhotoImage(image=self.resized_image)
-
-        self.height = int(self.height_o * self.factor)
-        self.width = int(self.width_o * self.factor)
-        self.annotation_img = Image.new('RGB', (self.width, self.height))
-
-
         fig = plt.figure()
         plt.imshow(self.colormap_np)
         plt.yticks(
@@ -71,6 +59,21 @@ class App:
         self.colormap_np = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
         self.colormap_np = self.colormap_np.reshape(fig.canvas.get_width_height()[::-1] + (3,))
         self.colormap_np = self.colormap_np[30:-30, 200:-200, :]
+        # self.colormap_np = 255 * resize(self.colormap_np, (image.shape[0], image.shape[1] // 10))
+
+
+        screen_w, screen_h = self.window.winfo_screenwidth(), self.window.winfo_screenheight()
+        dim = np.argmin(np.array([screen_h, screen_w]) - 1.1 * (np.array(image.shape[:2]) + np.array(self.colormap_np.shape[:2])*np.array([0,1])))
+        self.factor = np.array([screen_h, screen_w])[dim] / (1.1 * (np.array(image.shape[:2]) + np.array(self.colormap_np.shape[:2])*np.array([0,1]))[dim])
+        self.resized_image = self.image.resize((int(image.shape[1] * self.factor), int(image.shape[0] * self.factor)))
+        self.photo = ImageTk.PhotoImage(image=self.resized_image)
+
+        self.height = int(self.height_o * self.factor)
+        self.width = int(self.width_o * self.factor)
+        self.annotation_img = Image.new('RGB', (self.width, self.height))
+
+
+
         self.colormap = ImageTk.PhotoImage(Image.fromarray((self.colormap_np).astype('uint8')))
 
         self.draw = ImageDraw.Draw(self.image)
@@ -133,7 +136,7 @@ class App:
         current_scribble = resize(current_scribble, (self.height_o, self.width_o), order=0, anti_aliasing=False)
         r, c = np.where(current_scribble != 255)
         val = current_scribble[r, c]
-        scribble[r, c, val] = scribble[r, c, val] == False
+        scribble[r, c, val.astype(int)] = scribble[r, c, val.astype(int)] == False
         self.scribble = scribble
 
     def save(self):
