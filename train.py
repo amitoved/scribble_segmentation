@@ -33,30 +33,46 @@ def priority_metric(y_pred):
     return p
 
 
-def data_generator(batch_size=1):
-    # image_paths = [pathlib.Path(pool_folder, file) for file in os.listdir(pool_folder) if 'image_' in file]
-    df = pd.read_csv(constants.PRIORITY_DF)
-    image_paths = list(df['paths'])
+def data_generator(batch_size=1, data_type='train'):
+    if data_type == 'train':
+        df = pd.read_csv(os.path.join(pool_folder, 'train', 'priorities.csv'))
+        image_paths = list(df['paths'])
+    else:
+        image_paths = [pathlib.Path(os.path.join(pool_folder, 'train'), file) for file in os.listdir(pool_folder) if 'image_' in file]
+
     sample_image = np.load(image_paths[0])
     n_rows, n_cols, n_input_channels = sample_image.shape
     x = np.zeros((batch_size, n_rows, n_cols, n_input_channels))
     y = np.zeros((batch_size, n_rows, n_cols, constants.n_classes))
     while True:
-        df = pd.read_csv(constants.PRIORITY_DF)
+        if data_type == 'train':
+            df = pd.read_csv(os.path.join(pool_folder, 'train', 'priorities.csv'))
+            image_paths = list(df['paths'])
+            priorities = list(df['score'])
+            priorities = np.array(priorities) / np.sum(priorities)
+        else:
+            image_paths = [pathlib.Path(os.path.join(pool_folder, 'train'), file) for file in os.listdir(pool_folder) if
+                           'image_' in file]
+            priorities = np.array([1.] * len(image_paths)) / len(image_paths)
+
         image_paths = list(df['paths'])
         priorities = list(df['p'])
-        priorities = np.array(priorities) / np.sum(priorities)
         for i in range(batch_size):
             found_non_empty_scribble = False
             while not found_non_empty_scribble:
                 image_path = np.random.choice(image_paths, p=priorities)
                 image_path = pathlib.Path(image_path)
-                scribble_path = pathlib.Path(image_path.parent, image_path.name.replace('image_', 'scribble_'))
-                scribble = np.load(scribble_path)
-                if np.any(scribble):
+                if data_type == 'train':
+                    scribble_path = pathlib.Path(image_path.parent, image_path.name.replace('image_', 'scribble_'))
+                    true = np.load(scribble_path)
+                else:
+                    gt_path = pathlib.Path(image_path.parent, image_path.name.replace('image_', 'gt_'))
+                    true = np.load(gt_path)
+
+                if np.any(true):
                     img = np.load(image_path)
                     x[i] = normalize_image(img)
-                    y[i] = scribble.astype(int)
+                    y[i] = true.astype(int)
                     found_non_empty_scribble = True
         yield x, y
 
@@ -70,7 +86,7 @@ def weighted_cce(y_true, y_pred):
 
 def config_parser():
 
-    parser = configargparse.ArgumentParser()
+    parser = configargparse.ArgumentParser(ignore_unknown_config_file_keys=True)
     parser.add_argument('--config', is_config_file=True,
                         help='config file path')
     parser.add_argument('--epochs', type=int, help='number of epochs')
@@ -86,6 +102,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     training_generator = data_generator(batch_size=args.batch)
+    validation_generator = data_generator(batch_size=args.batch, data_type='val')
     x, y = next(training_generator)
     n_input_channels = x.shape[-1]
     model = unet2d_5(n_input_channels)
@@ -94,9 +111,12 @@ if __name__ == '__main__':
     image_paths = [pathlib.Path(pool_folder, file) for file in os.listdir(pool_folder) if 'image_' in file]
     pred_paths = [pathlib.Path(image_path.parent, image_path.name.replace('image_', 'pred_')) for image_path in
                   image_paths]
+    gt_paths = [pathlib.Path(image_path.parent, image_path.name.replace('image_', 'gt_')) for image_path in
+                  image_paths]
+
 
     while True:
-        model.fit(training_generator, steps_per_epoch=args.spe, epochs=args.epochs)
+        model.fit(training_generator, validation_data=validation_generator, steps_per_epoch=args.spe, epochs=args.epochs)
         df = []
         for image_path, pred_path in tqdm(zip(image_paths, pred_paths)):
             image = np.load(image_path)

@@ -3,3 +3,4 @@ lr = 1e-3
 epochs = 10
 spe = 2
 annotate_gt = True
+train_p = 0.7
