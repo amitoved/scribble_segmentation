@@ -77,6 +77,7 @@ def config_parser():
     parser.add_argument('--spe', type=int, help='steps per epoch')
     parser.add_argument('--batch', type=int, help='batchsize')
     parser.add_argument('--lr', type=float, help='learning rate')
+    parser.add_argument('--annotate_gt', action='store_true')
     return parser
 
 

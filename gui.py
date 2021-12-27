@@ -129,8 +129,8 @@ class App:
 
     def update_scribble(self):
         scribble = np.load(self.scribble_path)
-        scribble = resize(scribble, (self.height, self.width), anti_aliasing=False)
         current_scribble = np.array(self.scribble)
+        current_scribble = resize(current_scribble, (self.height_o, self.width_o), order=0, anti_aliasing=False)
         r, c = np.where(current_scribble != 255)
         val = current_scribble[r, c]
         scribble[r, c, val] = scribble[r, c, val] == False
@@ -138,7 +138,7 @@ class App:
 
     def save(self):
         self.update_scribble()
-        np.save(self.scribble_path, resize(self.scribble, (self.height_o, self.width_o), anti_aliasing=False))
+        np.save(self.scribble_path, self.scribble)
         print(self.scribble_path)
         self.last_x, self.last_y = None, None
         self.annotations = {val: [] for val in constants.classes.values()}
