@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PIL import ImageTk, Image, ImageDraw
 
+from time import time
 import constants
 from skimage.transform import resize
 from utils.general_utils import rgb2tk, folder_picker
@@ -74,7 +75,7 @@ class App:
 
         self.draw = ImageDraw.Draw(self.image)
         self.scribble = Image.fromarray(255 * np.ones([self.height, self.width]).astype(np.uint8))
-
+        self.tag_time = 0
         if not update:
             self.frame_tools = tk.Frame(self.window)
             self.frame_tools.pack()
@@ -111,6 +112,7 @@ class App:
         self.window.geometry(f'{screen_w}x{screen_h}')
 
     def get_x_and_y(self, event):
+        self.start_time = time()
         self.last_x, self.last_y = event.x, event.y
 
     def draw_smth(self, event):
@@ -124,6 +126,9 @@ class App:
         img1 = ImageDraw.Draw(self.scribble)
         img1.line((self.last_x, self.last_y, event.x, event.y), fill=self.class_val, width=brush_size)
         self.last_x, self.last_y = event.x, event.y
+        self.tag_time = self.tag_time + (time() - self.start_time)
+        print(self.tag_time)
+
 
     def update_scribble(self):
         scribble = np.load(self.scribble_path)
@@ -141,7 +146,10 @@ class App:
         self.last_x, self.last_y = None, None
         self.annotations = {val: [] for val in constants.classes.values()}
         self.class_val = None
+        with open(constants.TAGGING_TIME_DF, 'a+') as f:
+            f.write(f'{self.scribble_path},{self.tag_time}\n')
         self.selecting_file(update=True)
+
 
     def change_color(self):
         rgb, color_string = colorchooser.askcolor(initialcolor=self.color)
