@@ -1,1 +1,2 @@
 configargparse==1.5.3
+pydicom==2.2.2
