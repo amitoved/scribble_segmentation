@@ -8,6 +8,7 @@ import numpy as np
 from PIL import ImageTk, Image, ImageDraw
 
 import constants
+from skimage.transform import resize
 from utils.general_utils import rgb2tk, folder_picker
 from utils.image_utils import multichannel2rgb, generate_colormap
 
@@ -22,6 +23,8 @@ class App:
         self.pil_colors = constants.class_colors
         self.annotations = {val: [] for val in constants.classes.values()}
         self.window = tk.Tk()
+
+
         self.selecting_file()
         self.window.mainloop()
 
@@ -35,13 +38,29 @@ class App:
                                        self.scribble_path.name.replace('scribble_', 'image_'))
         self.pred_path = pathlib.Path(self.scribble_path.parent, self.scribble_path.name.replace('scribble_', 'pred_'))
         image = np.load(self.image_path)
-        self.height, self.width, n_input_chanels = image.shape
-        self.annotation_img = Image.new('RGB', (self.width, self.height))
-
         pred = np.load(self.pred_path)
         pred = multichannel2rgb(pred)
+        image = image / np.max(image)
+        self.height_o, self.width_o, n_input_chanels = image.shape
 
+        if n_input_chanels == 1:
+            image = np.concatenate([image] * 3, axis=-1)
+        image = image * (1 - constants.alpha) + constants.alpha * pred
+        image = (image * 255).astype(np.uint8)
+        self.image = Image.fromarray(image)
         self.colormap_np = generate_colormap(constants.n_classes, pred.shape[0], int(pred.shape[0] / 5))
+
+        screen_w, screen_h = self.window.winfo_screenwidth(), self.window.winfo_screenheight()
+        dim = np.argmin(np.array([screen_h, screen_w]) - 1.1 * (np.array(image.shape[:2]) + np.array(self.colormap_np.shape[:2])))
+        self.factor = np.array([screen_h, screen_w])[dim] / (1.1 * (np.array(image.shape[:2]) + np.array(self.colormap_np.shape[:2]))[dim])
+        self.resized_image = self.image.resize((int(image.shape[1] * self.factor), int(image.shape[0] * self.factor)))
+        self.photo = ImageTk.PhotoImage(image=self.resized_image)
+
+        self.height = int(self.height_o * self.factor)
+        self.width = int(self.width_o * self.factor)
+        self.annotation_img = Image.new('RGB', (self.width, self.height))
+
+
         fig = plt.figure()
         plt.imshow(self.colormap_np)
         plt.yticks(
@@ -52,15 +71,9 @@ class App:
         self.colormap_np = self.colormap_np.reshape(fig.canvas.get_width_height()[::-1] + (3,))
         self.colormap_np = self.colormap_np[30:-30, 200:-200, :]
         self.colormap = ImageTk.PhotoImage(Image.fromarray((self.colormap_np).astype('uint8')))
-        image = image / np.max(image)
-        if n_input_chanels == 1:
-            image = np.concatenate([image] * 3, axis=-1)
-        image = image * (1 - constants.alpha) + constants.alpha * pred
-        image = (image * 255).astype(np.uint8)
-        self.image = Image.fromarray(image)
+
         self.draw = ImageDraw.Draw(self.image)
-        self.photo = ImageTk.PhotoImage(image=self.image)
-        self.scribble = Image.fromarray(255 * np.ones(list(pred.shape[:2])).astype(np.uint8))
+        self.scribble = Image.fromarray(255 * np.ones([self.height, self.width]).astype(np.uint8))
 
         if not update:
             self.frame_tools = tk.Frame(self.window)
@@ -95,6 +108,8 @@ class App:
         self.canvas.create_image(0, 0, image=self.photo, anchor=tk.NW)
         self.colormap_canvas.create_image(0, 0, image=self.colormap, anchor=tk.NW)
 
+        self.window.geometry(f'{screen_w}x{screen_h}')
+
     def get_x_and_y(self, event):
         self.last_x, self.last_y = event.x, event.y
 
@@ -112,6 +127,7 @@ class App:
 
     def update_scribble(self):
         scribble = np.load(self.scribble_path)
+        scribble = resize(scribble, (self.height, self.width), anti_aliasing=False)
         current_scribble = np.array(self.scribble)
         r, c = np.where(current_scribble != 255)
         val = current_scribble[r, c]
@@ -120,7 +136,7 @@ class App:
 
     def save(self):
         self.update_scribble()
-        np.save(self.scribble_path, self.scribble)
+        np.save(self.scribble_path, resize(self.scribble, (self.height_o, self.width_o), anti_aliasing=False))
         print(self.scribble_path)
         self.last_x, self.last_y = None, None
         self.annotations = {val: [] for val in constants.classes.values()}
