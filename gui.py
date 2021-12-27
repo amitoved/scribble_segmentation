@@ -16,7 +16,7 @@ from utils.image_utils import multichannel2rgb, generate_colormap
 
 class App:
 
-    def __init__(self):
+    def __init__(self, args):
         self.color = '#FF0000'
         self.figure = 'rectangle'
         self.size = 5
@@ -24,6 +24,8 @@ class App:
         self.pil_colors = constants.class_colors
         self.annotations = {val: [] for val in constants.classes.values()}
         self.window = tk.Tk()
+        self.annotate_gt = args.annotate_gt
+
         screen_w, screen_h = self.window.winfo_screenwidth(), self.window.winfo_screenheight()
         self.window.geometry(f'{screen_w}x{screen_h}')
         self.selecting_file()
@@ -39,7 +41,11 @@ class App:
                                        self.scribble_path.name.replace('scribble_', 'image_'))
         self.gt_path = pathlib.Path(self.scribble_path.parent, self.scribble_path.name.replace('scribble_', 'gt_'))
         self.pred_path = pathlib.Path(self.scribble_path.parent, self.scribble_path.name.replace('scribble_', 'pred_'))
-        image = np.load(self.image_path)
+        if self.annotate_gt:
+            image = np.load(self.gt_path)
+            image = 255 * multichannel2rgb(image)
+        else:
+            image = np.load(self.image_path)
         pred = np.load(self.pred_path)
         pred = multichannel2rgb(pred)
         image = image / np.max(image)
@@ -162,5 +168,22 @@ class App:
             print(ex)
 
 
+def config_parser():
+
+    parser = configargparse.ArgumentParser(ignore_unknown_config_file_keys=True)
+    parser.add_argument('--config', is_config_file=True,
+                        help='config file path')
+    # parser.add_argument('--epochs', type=int, help='number of epochs')
+    # parser.add_argument('--spe', type=int, help='steps per epoch')
+    # parser.add_argument('--batch', type=int, help='batchsize')
+    # parser.add_argument('--lr', type=float, help='learning rate')
+    parser.add_argument('--annotate_gt', action='store_true')
+    return parser
+
+
+
 if __name__ == '__main__':
-    App()
+    parser = config_parser()
+    args = parser.parse_args()
+
+    App(args)
