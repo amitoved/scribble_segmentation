@@ -4,6 +4,7 @@ import tkinter as tk
 from time import time
 from tkinter import colorchooser, StringVar
 
+import configargparse
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import ImageTk, Image, ImageDraw
@@ -70,9 +71,9 @@ class App:
 
         screen_w, screen_h = self.window.winfo_screenwidth(), self.window.winfo_screenheight()
         dim = np.argmin(np.array([screen_h, screen_w]) - 1.1 * (
-                    np.array(image.shape[:2]) + np.array(self.colormap_np.shape[:2]) * np.array([0, 1])))
+                np.array(image.shape[:2]) + np.array(self.colormap_np.shape[:2]) * np.array([0, 1])))
         self.factor = np.array([screen_h, screen_w])[dim] / (
-                    1.1 * (np.array(image.shape[:2]) + np.array(self.colormap_np.shape[:2]) * np.array([0, 1]))[dim])
+                1.1 * (np.array(image.shape[:2]) + np.array(self.colormap_np.shape[:2]) * np.array([0, 1]))[dim])
         self.resized_image = self.image.resize((int(image.shape[1] * self.factor), int(image.shape[0] * self.factor)))
         self.photo = ImageTk.PhotoImage(image=self.resized_image)
 
@@ -169,7 +170,6 @@ class App:
 
 
 def config_parser():
-
     parser = configargparse.ArgumentParser(ignore_unknown_config_file_keys=True)
     parser.add_argument('--config', is_config_file=True,
                         help='config file path')
@@ -178,8 +178,8 @@ def config_parser():
     # parser.add_argument('--batch', type=int, help='batchsize')
     # parser.add_argument('--lr', type=float, help='learning rate')
     parser.add_argument('--annotate_gt', action='store_true')
-    return parser
 
+    return parser
 
 
 if __name__ == '__main__':
