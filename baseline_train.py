@@ -11,7 +11,7 @@ from tensorflow.keras import optimizers
 from tqdm import tqdm
 
 import constants
-from models.architectures import unet2d_5
+from models.architectures import unet2d_5, unet2d_8
 from utils.general_utils import folder_picker
 from utils.image_utils import normalize_image
 
@@ -28,20 +28,16 @@ if 'macOS' in platform.platform():
 # else:
 #     print("No GPU found")
 
-def priority_metric(y_pred):
-    # https://en.wikipedia.org/wiki/Total_variation_denoising
-    dx = skimage.filters.sobel_h(y_pred)
-    dy = skimage.filters.sobel_v(y_pred)
-    return np.mean((dx ** 2 + dy ** 2) ** 0.5)
 
 
-def data_generator(batch_size, data_type='train'):
-    if data_type == 'train':
-        df = pd.read_csv(os.path.join(pool_folder, 'train', 'priorities.csv'))
-        image_paths = list(df['paths'])
-    else:
-        image_paths = [pathlib.Path(os.path.join(pool_folder, 'train'), file) for file in os.listdir(pool_folder) if
-                       'image_' in file]
+
+def data_generator(batch_size, image_paths):
+    # if data_type == 'train':
+    #     df = pd.read_csv(os.path.join(pool_folder, 'train', 'priorities.csv'))
+    #     image_paths = list(df['paths'])
+    # else:
+    #     image_paths = [pathlib.Path(os.path.join(pool_folder, 'train'), file) for file in os.listdir(pool_folder) if
+    #                    'image_' in file]
 
     sample_image = np.load(image_paths[0])
     n_rows, n_cols, n_input_channels = sample_image.shape

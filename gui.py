@@ -35,6 +35,7 @@ class App:
     def selecting_file(self, update=False):
         if not update:
             self.pool_folder = folder_picker(initialdir=constants.DATA_DIR)
+            self.timer_path = os.path.join(self.pool_folder, 'train', 'timer.txt')
             self.scribble_paths = [pathlib.Path(self.pool_folder, file) for file in os.listdir(self.pool_folder) if
                                    'scribble_' in file]
         self.scribble_path = np.random.choice(self.scribble_paths)
@@ -100,6 +101,9 @@ class App:
             self.save_button = tk.Button(self.frame_tools, text='save', command=self.save)
             self.save_button.pack(side='left')
 
+            self.clear_button = tk.Button(self.frame_tools, text='clear', command=self.clear)
+            self.clear_button.pack(side='left')
+
             self.size_entry = tk.Entry(self.frame_tools)
             self.size_entry.bind('<Return>', self.change_size)
             self.size_entry.pack(side='left')
@@ -145,15 +149,25 @@ class App:
         scribble[r, c, val.astype(int)] = scribble[r, c, val.astype(int)] == False
         self.scribble = scribble
 
-    def save(self):
-        self.update_scribble()
-        np.save(self.scribble_path, self.scribble)
-        print(self.scribble_path)
+    def clear(self):
         self.last_x, self.last_y = None, None
         self.annotations = {val: [] for val in constants.classes.values()}
         self.class_val = None
-        with open(constants.TAGGING_TIME_DF, 'a+') as f:
-            f.write(f'{self.scribble_path},{time() - self.start_time}\n')
+        self.scribble = np.zeros_like(self.scribble)
+        self.canvas.create_image(0, 0, image=self.photo, anchor=tk.NW)
+
+    def save(self):
+        if np.any(np.array(self.scribble)):
+            self.update_scribble()
+            np.save(self.scribble_path, self.scribble)
+            print(self.scribble_path)
+
+            with open(self.timer_path, 'a+') as f:
+                f.write(f'{self.scribble_path},{time() - self.start_time}\n')
+
+        self.last_x, self.last_y = None, None
+        self.annotations = {val: [] for val in constants.classes.values()}
+        self.class_val = None
         self.selecting_file(update=True)
 
     def change_color(self):
@@ -185,5 +199,6 @@ def config_parser():
 if __name__ == '__main__':
     parser = config_parser()
     args = parser.parse_args()
+    print(args)
 
     App(args)

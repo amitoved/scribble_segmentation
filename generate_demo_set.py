@@ -8,7 +8,7 @@ import pandas as pd
 from pydicom import dcmread
 from tqdm import tqdm
 
-from constants import DATA_DIR, n_classes
+from constants import DATA_DIR, n_classes, SEED
 from utils.general_utils import generate_pool_paths, folder_picker
 
 
@@ -21,12 +21,12 @@ def get_files(folder, extensions):
 
 
 def config_parser():
-
     parser = configargparse.ArgumentParser(ignore_unknown_config_file_keys=True)
     parser.add_argument('--config', is_config_file=True,
                         help='config file path')
     parser.add_argument('--train_p', type=float, help='training data proportion')
     return parser
+
 
 if __name__ == "__main__":
     parser = config_parser()
@@ -43,40 +43,47 @@ if __name__ == "__main__":
         os.mkdir(os.path.join(pool_folder, 'val'))
 
     df = []
-    for source_file in tqdm(source_files):
-        data_type = np.random.choice(['train', 'val'], p=[args.train_p, 1 - args.train_p])
-        source_file = str(pathlib.Path(source_file))
-        base = os.path.basename(source_file)
-        basename, ext = os.path.splitext(base)
-        image_path, gt_path, pred_path, scribble_path = generate_pool_paths(os.path.join(pool_folder, data_type), basename)
-        if ext == '.dcm':
-            dcm = dcmread(source_file)
-            img = dcm.pixel_array
-        elif ext in ['.png', 'jpg']:
-            img = imageio.imread(source_file)
-        target_rows, target_cols = q * (img.shape[0] // q), q * (img.shape[1] // q)
+    np.random.seed(SEED)
+    np.random.shuffle(source_files)
+    n_files = len(source_files)
+    training_source_files = source_files[:int(args.train_p * n_files)]
+    val_source_files = source_files[int(args.train_p * n_files):]
+    for data_type in ['train', 'val']:
+        source_files_subset = training_source_files if data_type == 'train' else val_source_files
+        for source_file in tqdm(source_files_subset):
+            source_file = str(pathlib.Path(source_file))
+            base = os.path.basename(source_file)
+            basename, ext = os.path.splitext(base)
+            image_path, gt_path, pred_path, scribble_path = generate_pool_paths(os.path.join(pool_folder, data_type),
+                                                                                basename)
+            if ext == '.dcm':
+                dcm = dcmread(source_file)
+                img = dcm.pixel_array
+            elif ext in ['.png', 'jpg']:
+                img = imageio.imread(source_file)
+            target_rows, target_cols = q * (img.shape[0] // q), q * (img.shape[1] // q)
 
-        if img.ndim == 2:
-            img = img[..., None]
-        img = img[:target_rows, :target_cols, :]
-        # TODO: remove when GT exists
-        gt = np.zeros([target_rows, target_cols, n_classes])
-        gt[:10, :5, 0] = 1
-        gt[:10, 10:15, 1] = 1
-        pred = np.zeros([target_rows, target_cols, n_classes])
-        scribble = np.zeros([target_rows, target_cols, n_classes], dtype=bool)
-        if data_type == 'train':
-            df.append([image_path, 1.])
-        np.save(image_path, img)
-        np.save(gt_path, gt)
-        np.save(pred_path, pred)
-        np.save(scribble_path, scribble)
+            if img.ndim == 2:
+                img = img[..., None]
+            img = img[:target_rows, :target_cols, :]
+            # TODO: remove when GT exists
+            gt = np.zeros([target_rows, target_cols, n_classes])
+            gt[:50, :50, 0] = 1
+            gt[50:100, 50:100, 1] = 1
+            pred = np.zeros([target_rows, target_cols, n_classes])
+            scribble = np.zeros([target_rows, target_cols, n_classes], dtype=bool)
+            if data_type == 'train':
+                df.append([image_path, 1.])
+            np.save(image_path, img)
+            np.save(gt_path, gt)
+            np.save(pred_path, pred)
+            np.save(scribble_path, scribble)
 
     df = pd.DataFrame.from_records(df, columns=['paths', 'score'])
     df_path = os.path.join(os.path.join(pool_folder, 'train'), 'priorities.csv')
     df.to_csv(df_path)
 
-    timer_path = os.path.join(pool_folder, 'timer.txt')
+    timer_path = os.path.join(pool_folder, 'train', 'timer.txt')
     with open(timer_path, 'w') as f:
-        f.write('0.0')
+        f.write('')
     print('Done')
