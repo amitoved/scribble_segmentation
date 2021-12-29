@@ -153,5 +153,5 @@ def unet2d_8(n_input_channels):
     model = models.Model([inputs], [outputs], name='unet2d')
     return model
 
-models = {'unet2d_5': unet2d_5,
+model_types = {'unet2d_5': unet2d_5,
           'unet2d_8': unet2d_8}

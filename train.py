@@ -11,7 +11,7 @@ from tensorflow.keras import optimizers
 from tqdm import tqdm
 
 import constants
-from models.architectures import models
+from models.architectures import model_types
 from utils.general_utils import folder_picker
 from utils.image_utils import normalize_image
 
@@ -106,7 +106,7 @@ if __name__ == '__main__':
     validation_generator = data_generator(batch_size=args.batch, data_type='val')
     x, y = next(training_generator)
     n_input_channels = x.shape[-1]
-    model = models[args.model](n_input_channels)
+    model = model_types[args.model](n_input_channels)
     model.compile(loss=[weighted_cce], optimizer=optimizers.Adam(args.lr))
 
     image_paths = [pathlib.Path(pool_folder, file) for file in os.listdir(pool_folder) if 'image_' in file]

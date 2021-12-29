@@ -13,7 +13,7 @@ from tensorflow.keras import optimizers
 from tqdm import tqdm
 
 import constants
-from models.architectures import models
+from models.architectures import model_types
 from utils.general_utils import folder_picker
 from utils.image_utils import normalize_image
 import platform
@@ -72,6 +72,7 @@ def config_parser():
     parser.add_argument('--lr', type=float, help='learning rate')
     parser.add_argument('--annotate_gt', action='store_true')
     parser.add_argument('--model', type=str, help='model name')
+    parser.add_argument('--train_p', type=float, help='training data proportion')
     return parser
 
 
@@ -92,7 +93,7 @@ if __name__ == '__main__':
     validation_generator = data_generator(batch_size=args.batch, image_paths=val_image_paths)
     x, y = next(training_generator)
     n_input_channels = x.shape[-1]
-    model = models[args.model](n_input_channels)
+    model = model_types[args.model](n_input_channels)
     model.compile(loss=[weighted_cce], optimizer=optimizers.Adam(args.lr))
 
     early_stopping_cbk = EarlyStopping(monitor='val_loss', mode='min', verbose=1)

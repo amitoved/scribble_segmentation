@@ -1,7 +1,7 @@
 batch = 1
 lr = 1e-3
-epochs = 10
-spe = 2
+epochs = 1000
+spe = 50
 train_p = 0.7
 annotate_gt = False
 model = unet2d_5
