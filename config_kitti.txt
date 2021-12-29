@@ -4,3 +4,4 @@ epochs = 10
 spe = 2
 train_p = 0.7
 annotate_gt = False
+model = unet2d_5
