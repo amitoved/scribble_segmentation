@@ -1,8 +1,8 @@
 batch = 1
 lr = 1e-3
-epochs = 10
-spe = 2
-train_p = 0.7
+epochs = 5
+spe = 100
+train_p = 0.9
 annotate_gt = False
 baseline_training_sizes = [0.1, 0.2, 0.5, 1.0]
 model_arch = unet2d_5
