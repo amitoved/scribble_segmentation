@@ -95,11 +95,12 @@ if __name__ == '__main__':
         print('##########')
         print(f'strating training_set_size = {training_set_size}')
         model_path = os.path.join(pool_folder, f'training_log_size_{training_set_size}.h5')
-        log_path = os.path.join(pool_folder, f'training_log_size_{training_set_size}.npz')
+        log_path = os.path.join(pool_folder, f'training_log_size_{training_set_size}.npy')
 
         checkpoint_callback = callbacks.ModelCheckpoint(filepath=model_path, verbose=1, monitor='val_loss',
                                                         save_best_only=True, save_weights_only=False)
         training_generator = data_generator(training_image_paths[:training_set_size], batch_size=args.batch)
         training_log = model.fit(training_generator, validation_data=(val_x, val_y), steps_per_epoch=args.spe,
                                  epochs=args.epochs, callbacks=[checkpoint_callback])
-        np.save(log_path, training_log)
+        np.save(log_path, training_log.history)
+        np.load(log_path, allow_pickle=True)
