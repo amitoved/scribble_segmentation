@@ -4,4 +4,5 @@ epochs = 1000
 spe = 50
 train_p = 0.7
 annotate_gt = False
-model = unet2d_5
+baseline_training_sizes = [0.1, 0.2, 0.5, 1.0]
+model_arch = unet2d_5
