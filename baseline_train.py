@@ -8,7 +8,7 @@ from tensorflow.keras import backend as K
 from tensorflow.keras import optimizers, callbacks
 
 import constants
-from models.architectures import unet2d_5
+from models.architectures import models_types
 from utils.general_utils import folder_picker
 from utils.image_utils import normalize_image
 
@@ -70,6 +70,7 @@ def config_parser():
     parser.add_argument('--spe', type=int, help='steps per epoch')
     parser.add_argument('--batch', type=int, help='batchsize')
     parser.add_argument('--lr', type=float, help='learning rate')
+    parser.add_argument('--model_arch', type=str, help='model arch')
     parser.add_argument('--annotate_gt', action='store_true')
     parser.add_argument('--baseline_training_sizes', action='append')
     return parser
@@ -79,18 +80,18 @@ if __name__ == '__main__':
     parser = config_parser()
     args = parser.parse_args()
 
-    training_image_paths = [pathlib.Path(os.path.join(pool_folder, 'train'), file) for file in os.listdir(pool_folder)
-                            if 'image_' in file]
-
-    val_image_paths = [pathlib.Path(os.path.join(pool_folder, 'val'), file) for file in os.listdir(pool_folder)
-                       if 'image_' in file]
+    training_pool = os.path.join(pool_folder, 'train')
+    val_pool = os.path.join(pool_folder, 'val')
+    training_image_paths = [os.path.join(training_pool, file) for file in os.listdir(training_pool) if 'image_' in file]
+    val_image_paths = [os.path.join(val_pool, file) for file in os.listdir(val_pool) if 'image_' in file]
 
     val_x, val_y = load_data(val_image_paths)
     n_input_channels = val_x.shape[-1]
 
-    model = unet2d_5(n_input_channels)
+    model = models_types[args.model_arch](n_input_channels)
     model.compile(loss=[weighted_cce], optimizer=optimizers.Adam(args.lr))
-    for training_set_size in args.batch:
+    for relative_training_set_size in args.baseline_training_sizes:
+        training_set_size = int(float(relative_training_set_size) * len(training_image_paths))
         print('##########')
         print(f'strating training_set_size = {training_set_size}')
         model_path = os.path.join(pool_folder, f'training_log_size_{training_set_size}.h5')
@@ -98,10 +99,7 @@ if __name__ == '__main__':
 
         checkpoint_calback = callbacks.ModelCheckpoint(filepath=model_path, verbose=1, monitor='val_loss',
                                                        save_best_only=True, save_weights_only=False)
-        training_set_size = min(len(training_image_paths), training_set_size)
         training_generator = data_generator(training_image_paths[:training_set_size], batch_size=args.batch)
         training_log = model.fit(training_generator, validation_data=(val_x, val_y), steps_per_epoch=args.spe,
                                  epochs=args.epochs)
         np.save(log_path, training_log)
-        if training_set_size == len(training_image_paths):
-            break
