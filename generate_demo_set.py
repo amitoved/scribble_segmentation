@@ -5,6 +5,7 @@ import configargparse
 import imageio
 import numpy as np
 import pandas as pd
+from keras.utils.np_utils import to_categorical
 from pydicom import dcmread
 from tqdm import tqdm
 
@@ -61,15 +62,16 @@ if __name__ == "__main__":
                 img = dcm.pixel_array
             elif ext in ['.png', 'jpg']:
                 img = imageio.imread(source_file)
+                gt = imageio.imread(source_file.replace('image_2', 'semantic'))
+
             target_rows, target_cols = q * (img.shape[0] // q), q * (img.shape[1] // q)
 
             if img.ndim == 2:
                 img = img[..., None]
             img = img[:target_rows, :target_cols, :]
-            # TODO: remove when GT exists
-            gt = np.zeros([target_rows, target_cols, n_classes])
-            gt[:50, :50, 0] = 1
-            gt[50:100, 50:100, 1] = 1
+            gt = gt[:target_rows, :target_cols]
+            gt = (gt == 7).astype(int)  # on vkitti, 7 is the the road
+            gt = to_categorical(gt, num_classes=2)
             pred = np.zeros([target_rows, target_cols, n_classes])
             scribble = np.zeros([target_rows, target_cols, n_classes], dtype=bool)
             if data_type == 'train':

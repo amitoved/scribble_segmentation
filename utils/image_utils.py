@@ -1,8 +1,16 @@
 import numpy as np
+from skimage import filters
 
 
 def normalize_image(x):
     return (x - np.min(x)) / (np.max(x) - np.min(x) + 1e-9)
+
+
+def img_tv(y_pred):
+    # https://en.wikipedia.org/wiki/Total_variation_denoising
+    dx = filters.sobel_h(y_pred)
+    dy = filters.sobel_v(y_pred)
+    return np.mean((dx ** 2 + dy ** 2) ** 0.5)
 
 
 def multichannel2rgb(x):
@@ -29,4 +37,4 @@ def generate_colormap(n_classes, h, w):
     for i in range(len(colormap)):
         v[i, colormap[i]] = 1
 
-    return multichannel2rgb(np.stack([v]*w, axis=1))
+    return multichannel2rgb(np.stack([v] * w, axis=1))

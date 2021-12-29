@@ -30,7 +30,7 @@ def load_data(image_paths):
     sample_image = np.load(image_paths[0])
     n_rows, n_cols, n_input_channels = sample_image.shape
     x = np.zeros((n, n_rows, n_cols, n_input_channels))
-    y = np.zeros((n, n_rows, n_cols, constants.n_classes), dtype=np.uint8)
+    y = np.zeros((n, n_rows, n_cols, constants.n_classes))
     for i in range(n):
         image_path = pathlib.Path(image_paths[i])
         gt_path = pathlib.Path(image_path.parent, image_path.name.replace('image_', 'gt_'))
@@ -98,7 +98,7 @@ if __name__ == '__main__':
         log_path = os.path.join(pool_folder, f'training_log_size_{training_set_size}.npz')
 
         checkpoint_callback = callbacks.ModelCheckpoint(filepath=model_path, verbose=1, monitor='val_loss',
-                                                       save_best_only=True, save_weights_only=False)
+                                                        save_best_only=True, save_weights_only=False)
         training_generator = data_generator(training_image_paths[:training_set_size], batch_size=args.batch)
         training_log = model.fit(training_generator, validation_data=(val_x, val_y), steps_per_epoch=args.spe,
                                  epochs=args.epochs, callbacks=[checkpoint_callback])
