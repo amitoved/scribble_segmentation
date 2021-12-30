@@ -4,7 +4,6 @@ import pathlib
 import configargparse
 import numpy as np
 import pandas as pd
-import skimage
 import tensorflow as tf
 from tensorflow.keras import backend as K
 from tensorflow.keras import optimizers
@@ -13,7 +12,7 @@ from tqdm import tqdm
 import constants
 from models.architectures import model_types
 from utils.general_utils import folder_picker
-from utils.image_utils import normalize_image
+from utils.image_utils import normalize_image, img_tv
 
 pool_folder = folder_picker(initialdir=constants.DATA_DIR)
 
@@ -27,12 +26,6 @@ if 'macOS' in platform.platform():
 #     print('GPU found')
 # else:
 #     print("No GPU found")
-
-def priority_metric(y_pred):
-    # https://en.wikipedia.org/wiki/Total_variation_denoising
-    dx = skimage.filters.sobel_h(y_pred)
-    dy = skimage.filters.sobel_v(y_pred)
-    return np.mean((dx ** 2 + dy ** 2) ** 0.5)
 
 
 def data_generator(batch_size, data_type='train'):
@@ -122,8 +115,8 @@ if __name__ == '__main__':
         for image_path, pred_path in tqdm(zip(image_paths, pred_paths)):
             image = np.load(image_path)
             pred = model.predict(image[None, ...])[0]
-            p = priority_metric(pred)
-            df.append([image_path, p])
+            score = img_tv(pred)
+            df.append([image_path, score])
             np.save(arr=pred, file=pred_path)
         df = pd.DataFrame.from_records(df, columns=['paths', 'score'])
         df.to_csv(constants.PRIORITY_DF)
