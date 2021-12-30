@@ -5,11 +5,10 @@ import configargparse
 import imageio
 import numpy as np
 import pandas as pd
-from keras.utils.np_utils import to_categorical
-from pydicom import dcmread
 from tqdm import tqdm
 
 from constants import DATA_DIR, n_classes, SEED
+from utils.data_loaders_utils import data_loaders
 from utils.general_utils import generate_pool_paths, folder_picker
 
 
@@ -26,6 +25,7 @@ def config_parser():
     parser.add_argument('--config', is_config_file=True,
                         help='config file path')
     parser.add_argument('--train_p', type=float, help='training data proportion')
+    parser.add_argument('--data_loader', type=str, help='the name of the data loading function')
     return parser
 
 
@@ -57,21 +57,14 @@ if __name__ == "__main__":
             basename, ext = os.path.splitext(base)
             image_path, gt_path, pred_path, scribble_path = generate_pool_paths(os.path.join(pool_folder, data_type),
                                                                                 basename)
-            if ext == '.dcm':
-                dcm = dcmread(source_file)
-                img = dcm.pixel_array
-            elif ext in ['.png', 'jpg']:
-                img = imageio.imread(source_file)
-                gt = imageio.imread(source_file.replace('image_2', 'semantic'))
-
+            img, gt = data_loaders[args.data_loader](source_file)
             target_rows, target_cols = q * (img.shape[0] // q), q * (img.shape[1] // q)
 
             if img.ndim == 2:
                 img = img[..., None]
             img = img[:target_rows, :target_cols, :]
             gt = gt[:target_rows, :target_cols]
-            gt = (gt == 7).astype(int)  # on vkitti, 7 is the the road
-            gt = to_categorical(gt, num_classes=2)
+
             pred = np.zeros([target_rows, target_cols, n_classes])
             scribble = np.zeros([target_rows, target_cols, n_classes], dtype=bool)
             if data_type == 'train':

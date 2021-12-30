@@ -1,6 +1,7 @@
 import os
 import platform
 from tkinter import filedialog
+import numpy as np
 
 
 def folder_picker(initialdir=None, title=None):
@@ -32,3 +33,19 @@ def generate_pool_paths(folder, suffix):
 def rgb2tk(rgb):
     r, g, b = rgb
     return f"#{r:02x}{g:02x}{b:02x}"
+
+
+def rle2mask(rle, width, height):
+    mask= np.zeros(width * height)
+    array = np.asarray([int(x) for x in rle.split()])
+    starts = array[0::2]
+    lengths = array[1::2]
+
+    current_position = 0
+    for index, start in enumerate(starts):
+        current_position += start
+        mask[current_position:current_position+lengths[index]] = 255
+        current_position += lengths[index]
+
+    return mask.reshape(width, height)
+
