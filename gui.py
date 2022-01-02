@@ -11,7 +11,8 @@ from PIL import ImageTk, Image, ImageDraw
 from skimage.transform import resize
 
 import constants
-from utils.general_utils import rgb2tk, folder_picker
+from utils.data_loaders_utils import data_loaders
+from utils.general_utils import rgb2tk, folder_picker, generate_pool_paths
 from utils.image_utils import multichannel2rgb, generate_colormap
 
 
@@ -34,20 +35,19 @@ class App:
 
     def selecting_file(self, update=False):
         if not update:
-            self.pool_folder = folder_picker(initialdir=constants.DATA_DIR)
+            self.pool_folder = folder_picker(initialdir=constants.DATA_DIR, title='pick training folder')
+            self.prob_df = os.path.join(os.path.join(self.pool_folder, 'train'))
             self.timer_path = os.path.join(self.pool_folder, 'train', 'timer.txt')
             self.scribble_paths = [pathlib.Path(self.pool_folder, file) for file in os.listdir(self.pool_folder) if
                                    'scribble_' in file]
-        self.scribble_path = np.random.choice(self.scribble_paths)
-        self.image_path = pathlib.Path(self.scribble_path.parent,
-                                       self.scribble_path.name.replace('scribble_', 'image_'))
-        self.gt_path = pathlib.Path(self.scribble_path.parent, self.scribble_path.name.replace('scribble_', 'gt_'))
-        self.pred_path = pathlib.Path(self.scribble_path.parent, self.scribble_path.name.replace('scribble_', 'pred_'))
+        self.image_path = self.prob_df.sample(n=1, random_state=constants.SEED).image_path
+        basename, _ = os.path.splitext(os.path.basename(self.image_path))
+        _, _, self.pred_path, self.scribble_path = generate_pool_paths(self.pool_folder, basename)
+        image, gt = data_loaders[args.data_loader](self.image_path)
+
         if self.annotate_gt:
-            image = np.load(self.gt_path)
-            image = 255 * multichannel2rgb(image)
-        else:
-            image = np.load(self.image_path)
+            image = gt
+
         pred = np.load(self.pred_path)
         pred = multichannel2rgb(pred)
         image = image / np.max(image)
@@ -192,6 +192,9 @@ def config_parser():
     # parser.add_argument('--batch', type=int, help='batchsize')
     # parser.add_argument('--lr', type=float, help='learning rate')
     parser.add_argument('--annotate_gt', action='store_true')
+    parser.add_argument('--data_loader', type=str, help='the name of the data loading function')
+    parser.add_argument('--q', type=int, help='the image size should be a multiplier of this number')
+
 
     return parser
 

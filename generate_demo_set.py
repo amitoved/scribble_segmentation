@@ -27,6 +27,7 @@ def config_parser():
     parser.add_argument('--train_p', type=float, help='training data proportion')
     parser.add_argument('--data_loader', type=str, help='the name of the data loading function')
     parser.add_argument('--max_data', type=int, help='the maximal length of data')
+    parser.add_argument('--q', type=int, help='the image size should be a multiplier of this number')
 
     return parser
 
@@ -68,10 +69,10 @@ if __name__ == "__main__":
             img = img[:target_rows, :target_cols, :]
             gt = gt[:target_rows, :target_cols]
 
-            pred = np.zeros([target_rows, target_cols, n_classes])
+            pred = np.zeros([target_rows, target_cols, n_classes], dtype=np.uint8)
             scribble = np.zeros([target_rows, target_cols, n_classes], dtype=bool)
             if data_type == 'train':
-                df.append([image_path, 1.])
+                df.append([source_file, 1.])
             try:
                 # np.save(image_path, img)
                 # np.save(gt_path, gt)

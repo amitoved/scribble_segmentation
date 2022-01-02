@@ -7,3 +7,5 @@ annotate_gt = False
 baseline_training_sizes = [0.1, 0.2, 0.5, 1.0]
 model_arch = unet2d_5
 data_loader = siim
+max_data = 1000
+q = 32

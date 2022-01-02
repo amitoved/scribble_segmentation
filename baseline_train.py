@@ -28,7 +28,7 @@ if 'macOS' in platform.platform():
 
 def load_data(image_paths, **args):
     n = len(image_paths)
-    img, gt = data_loaders[args.data_loadegitr](image_paths[0])
+    img, gt = data_loaders[args.data_loader](image_paths[0])
     target_rows, target_cols = args.q * (img.shape[0] // args.q), args.q * (img.shape[1] // args.q)
 
     if img.ndim == 2:
@@ -98,7 +98,7 @@ if __name__ == '__main__':
     training_image_paths = [os.path.join(training_pool, file) for file in os.listdir(training_pool) if 'image_' in file]
     val_image_paths = [os.path.join(val_pool, file) for file in os.listdir(val_pool) if 'image_' in file]
 
-    val_x, val_y = load_data(val_image_paths)
+    val_x, val_y = load_data(val_image_paths, args)
     n_input_channels = val_x.shape[-1]
 
     model = models_types[args.model_arch](n_input_channels)
@@ -112,7 +112,7 @@ if __name__ == '__main__':
 
         checkpoint_callback = callbacks.ModelCheckpoint(filepath=model_path, verbose=1, monitor='val_loss',
                                                         save_best_only=True, save_weights_only=False)
-        training_generator = data_generator(training_image_paths[:training_set_size], batch_size=args.batch)
+        training_generator = data_generator(training_image_paths[:training_set_size], args)
         training_log = model.fit(training_generator, validation_data=(val_x, val_y), steps_per_epoch=args.spe,
                                  epochs=args.epochs, callbacks=[checkpoint_callback])
         np.save(log_path, training_log.history)
