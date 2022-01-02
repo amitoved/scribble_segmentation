@@ -5,6 +5,7 @@ from time import time
 from tkinter import colorchooser, StringVar
 
 import configargparse
+import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import ImageTk, Image, ImageDraw
@@ -35,12 +36,13 @@ class App:
 
     def selecting_file(self, update=False):
         if not update:
+            print('Select the training folder')
             self.pool_folder = folder_picker(initialdir=constants.DATA_DIR, title='pick training folder')
-            self.prob_df = os.path.join(os.path.join(self.pool_folder, 'train'))
-            self.timer_path = os.path.join(self.pool_folder, 'train', 'timer.txt')
+            self.prob_df = pd.read_csv(os.path.join(os.path.join(self.pool_folder, 'priorities.csv')))
+            self.timer_path = os.path.join(self.pool_folder, 'timer.txt')
             self.scribble_paths = [pathlib.Path(self.pool_folder, file) for file in os.listdir(self.pool_folder) if
                                    'scribble_' in file]
-        self.image_path = self.prob_df.sample(n=1, random_state=constants.SEED).image_path
+        self.image_path = self.prob_df.sample(n=1, random_state=constants.SEED).iloc[0].paths
         basename, _ = os.path.splitext(os.path.basename(self.image_path))
         _, _, self.pred_path, self.scribble_path = generate_pool_paths(self.pool_folder, basename)
         image, gt = data_loaders[args.data_loader](self.image_path)

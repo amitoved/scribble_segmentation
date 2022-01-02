@@ -31,6 +31,8 @@ def siim_acr_loader(image_path):
         rle = [int(p) for p in encoded_pixels.split(' ')]
         seg = rle2mask(rle, img.shape[1], img.shape[0])
     seg = to_categorical(seg, num_classes=2)
+    if img.ndim == 2:
+        img = img[..., None]
     return img, seg
 
 
