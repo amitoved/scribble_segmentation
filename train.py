@@ -11,7 +11,8 @@ from tqdm import tqdm
 
 import constants
 from models.architectures import model_types
-from utils.general_utils import folder_picker
+from utils.data_loaders_utils import data_loaders
+from utils.general_utils import folder_picker, generate_pool_paths
 from utils.image_utils import normalize_image, img_tv
 
 pool_folder = folder_picker(initialdir=constants.DATA_DIR)
@@ -28,18 +29,18 @@ if 'macOS' in platform.platform():
 #     print("No GPU found")
 
 
-def data_generator(batch_size, data_type='train'):
+def data_generator(args, data_type='train'):
     if data_type == 'train':
         df = pd.read_csv(os.path.join(pool_folder, 'train', 'priorities.csv'))
         image_paths = list(df['paths'])
     else:
-        image_paths = [pathlib.Path(os.path.join(pool_folder, 'train'), file) for file in os.listdir(pool_folder) if
+        image_paths = [pathlib.Path(os.path.join(pool_folder, 'val'), file) for file in os.listdir(pool_folder) if
                        'image_' in file]
 
-    sample_image = np.load(image_paths[0])
+    sample_image, _ = data_loaders[args.data_loader](image_paths[0])
     n_rows, n_cols, n_input_channels = sample_image.shape
-    x = np.zeros((batch_size, n_rows, n_cols, n_input_channels))
-    y = np.zeros((batch_size, n_rows, n_cols, constants.n_classes))
+    x = np.zeros((args.batch_size, n_rows, n_cols, n_input_channels))
+    y = np.zeros((args.batch_size, n_rows, n_cols, constants.n_classes))
     while True:
         if data_type == 'train':
             df = pd.read_csv(os.path.join(pool_folder, 'train', 'priorities.csv'))
@@ -47,24 +48,24 @@ def data_generator(batch_size, data_type='train'):
             priorities = list(df['score'])
             priorities = np.array(priorities) / np.sum(priorities)
         else:
-            image_paths = [pathlib.Path(os.path.join(pool_folder, 'train'), file) for file in os.listdir(pool_folder) if
+            image_paths = [pathlib.Path(os.path.join(pool_folder, 'val'), file) for file in os.listdir(pool_folder) if
                            'image_' in file]
             priorities = np.array([1.] * len(image_paths)) / len(image_paths)
 
-        for i in range(batch_size):
+        for i in range(args.batch_size):
             found_non_empty_scribble = False
             while not found_non_empty_scribble:
                 image_path = np.random.choice(image_paths, p=priorities)
                 image_path = pathlib.Path(image_path)
+                basename, _ = os.path.splitext(os.path.basename(image_path))
+                _, gt_path, _, scribble_path = generate_pool_paths(os.path.join(pool_folder, data_type), basename)
                 if data_type == 'train':
-                    scribble_path = pathlib.Path(image_path.parent, image_path.name.replace('image_', 'scribble_'))
                     true = np.load(scribble_path)
                 else:
-                    gt_path = pathlib.Path(image_path.parent, image_path.name.replace('image_', 'gt_'))
                     true = np.load(gt_path)
 
                 if np.any(true):
-                    img = np.load(image_path)
+                    img, _ = data_loaders[args.data_loader](image_path)
                     x[i] = normalize_image(img)
                     y[i] = true.astype(int)
                     found_non_empty_scribble = True

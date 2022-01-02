@@ -8,7 +8,7 @@ from tensorflow.keras import backend as K
 from tensorflow.keras import optimizers, callbacks
 
 import constants
-from models.architectures import models_types
+from models.architectures import model_types
 from utils.data_loaders_utils import data_loaders
 from utils.general_utils import folder_picker
 from utils.image_utils import normalize_image
@@ -26,7 +26,7 @@ if 'macOS' in platform.platform():
 # else:
 #     print("No GPU found")
 
-def load_data(image_paths, **args):
+def load_data(image_paths, args):
     n = len(image_paths)
     img, gt = data_loaders[args.data_loader](image_paths[0])
     target_rows, target_cols = args.q * (img.shape[0] // args.q), args.q * (img.shape[1] // args.q)
@@ -47,7 +47,7 @@ def load_data(image_paths, **args):
     return x, y
 
 
-def data_generator(image_paths, **args):
+def data_generator(image_paths, args):
     img, gt = data_loaders[args.data_loader](image_paths[0])
     target_rows, target_cols = args.q * (img.shape[0] // args.q), args.q * (img.shape[1] // args.q)
 
@@ -101,7 +101,7 @@ if __name__ == '__main__':
     val_x, val_y = load_data(val_image_paths, args)
     n_input_channels = val_x.shape[-1]
 
-    model = models_types[args.model_arch](n_input_channels)
+    model = model_types[args.model_arch](n_input_channels)
     model.compile(loss=[weighted_cce], optimizer=optimizers.Adam(args.lr))
     for relative_training_set_size in args.baseline_training_sizes:
         training_set_size = int(float(relative_training_set_size) * len(training_image_paths))

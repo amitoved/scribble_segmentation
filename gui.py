@@ -42,13 +42,13 @@ class App:
             self.timer_path = os.path.join(self.pool_folder, 'timer.txt')
             self.scribble_paths = [pathlib.Path(self.pool_folder, file) for file in os.listdir(self.pool_folder) if
                                    'scribble_' in file]
-        self.image_path = self.prob_df.sample(n=1, random_state=constants.SEED).iloc[0].paths
+        self.image_path = self.prob_df.iloc[np.random.randint(0, len(self.prob_df))].paths
         basename, _ = os.path.splitext(os.path.basename(self.image_path))
         _, _, self.pred_path, self.scribble_path = generate_pool_paths(self.pool_folder, basename)
         image, gt = data_loaders[args.data_loader](self.image_path)
 
         if self.annotate_gt:
-            image = gt
+            image = multichannel2rgb(gt)
 
         pred = np.load(self.pred_path)
         pred = multichannel2rgb(pred)
