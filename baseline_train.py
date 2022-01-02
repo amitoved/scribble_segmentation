@@ -9,6 +9,7 @@ from tensorflow.keras import optimizers, callbacks
 
 import constants
 from models.architectures import models_types
+from utils.data_loaders_utils import data_loaders
 from utils.general_utils import folder_picker
 from utils.image_utils import normalize_image
 
@@ -25,33 +26,45 @@ if 'macOS' in platform.platform():
 # else:
 #     print("No GPU found")
 
-def load_data(image_paths):
+def load_data(image_paths, **args):
     n = len(image_paths)
-    sample_image = np.load(image_paths[0])
+    img, gt = data_loaders[args.data_loadegitr](image_paths[0])
+    target_rows, target_cols = args.q * (img.shape[0] // args.q), args.q * (img.shape[1] // args.q)
+
+    if img.ndim == 2:
+        img = img[..., None]
+    sample_image = img[:target_rows, :target_cols, :]
     n_rows, n_cols, n_input_channels = sample_image.shape
     x = np.zeros((n, n_rows, n_cols, n_input_channels))
     y = np.zeros((n, n_rows, n_cols, constants.n_classes))
     for i in range(n):
         image_path = pathlib.Path(image_paths[i])
-        gt_path = pathlib.Path(image_path.parent, image_path.name.replace('image_', 'gt_'))
-        img = np.load(image_path)
-        x[i] = normalize_image(img)
-        y[i] = np.load(gt_path)
+        img, gt = data_loaders[args.data_loader](image_path)
+        if img.ndim == 2:
+            img = img[..., None]
+        x[i] = normalize_image(img[:target_rows, :target_cols])
+        y[i] = gt[:target_rows, :target_cols]
     return x, y
 
 
-def data_generator(image_paths, batch_size):
-    sample_image = np.load(image_paths[0])
+def data_generator(image_paths, **args):
+    img, gt = data_loaders[args.data_loader](image_paths[0])
+    target_rows, target_cols = args.q * (img.shape[0] // args.q), args.q * (img.shape[1] // args.q)
+
+    if img.ndim == 2:
+        img = img[..., None]
+    sample_image = img[:target_rows, :target_cols, :]
     n_rows, n_cols, n_input_channels = sample_image.shape
-    x = np.zeros((batch_size, n_rows, n_cols, n_input_channels))
-    y = np.zeros((batch_size, n_rows, n_cols, constants.n_classes))
+    x = np.zeros((args.batch_size, n_rows, n_cols, n_input_channels))
+    y = np.zeros((args.batch_size, n_rows, n_cols, constants.n_classes))
     while True:
-        for i in range(batch_size):
+        for i in range(args.batch_size):
             image_path = pathlib.Path(np.random.choice(image_paths))
-            gt_path = pathlib.Path(image_path.parent, image_path.name.replace('image_', 'gt_'))
-            img = np.load(image_path)
-            x[i] = normalize_image(img)
-            y[i] = np.load(gt_path)
+            img, gt = data_loaders[args.data_loader](image_path)
+            if img.ndim == 2:
+                img = img[..., None]
+            x[i] = normalize_image(img[:target_rows, :target_cols])
+            y[i] = gt[:target_rows, :target_cols]
         yield x, y
 
 
