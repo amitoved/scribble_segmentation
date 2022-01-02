@@ -73,8 +73,8 @@ if __name__ == "__main__":
             if data_type == 'train':
                 df.append([image_path, 1.])
             try:
-                #np.save(image_path, img)
-                #np.save(gt_path, gt)
+                # np.save(image_path, img)
+                # np.save(gt_path, gt)
                 np.save(pred_path, pred)
                 np.save(scribble_path, scribble)
             except Exception as e:
