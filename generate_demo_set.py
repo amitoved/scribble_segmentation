@@ -26,6 +26,8 @@ def config_parser():
                         help='config file path')
     parser.add_argument('--train_p', type=float, help='training data proportion')
     parser.add_argument('--data_loader', type=str, help='the name of the data loading function')
+    parser.add_argument('--max_data', type=int, help='the maximal length of data')
+
     return parser
 
 
@@ -35,6 +37,7 @@ if __name__ == "__main__":
     q = 32
     source_folder = folder_picker(title='Choose a folder containing images')
     source_files = get_files(folder=source_folder, extensions=['*.png', '*.jpg', '*.dcm'])
+    source_files = source_files[:np.minimum(len(source_files), args.max_data)]
     pool_name = os.path.basename(source_folder)
     pool_folder = os.path.join(DATA_DIR, pool_name)
 
@@ -69,10 +72,13 @@ if __name__ == "__main__":
             scribble = np.zeros([target_rows, target_cols, n_classes], dtype=bool)
             if data_type == 'train':
                 df.append([image_path, 1.])
-            np.save(image_path, img)
-            np.save(gt_path, gt)
-            np.save(pred_path, pred)
-            np.save(scribble_path, scribble)
+            try:
+                #np.save(image_path, img)
+                #np.save(gt_path, gt)
+                np.save(pred_path, pred)
+                np.save(scribble_path, scribble)
+            except Exception as e:
+                print(e)
 
     df = pd.DataFrame.from_records(df, columns=['paths', 'score'])
     df_path = os.path.join(os.path.join(pool_folder, 'train'), 'priorities.csv')
