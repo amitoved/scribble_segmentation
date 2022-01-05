@@ -98,9 +98,9 @@ if __name__ == '__main__':
     val_y = val_y[:10]
     n_input_channels = val_x.shape[-1]
 
-    model = model_types[args.model](n_input_channels)
-    model.compile(loss=[weighted_cce], optimizer=optimizers.Adam(args.lr))
     for relative_training_set_size in args.baseline_training_sizes:
+        model = model_types[args.model](n_input_channels)
+        model.compile(loss=[weighted_cce], optimizer=optimizers.Adam(args.lr))
         training_set_size = int(float(relative_training_set_size) * len(training_image_paths))
         print('##########')
         print(f'strating training_set_size = {training_set_size}')
