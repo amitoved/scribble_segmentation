@@ -2,7 +2,6 @@ import os
 import pathlib
 
 import configargparse
-import imageio
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -60,9 +59,7 @@ if __name__ == "__main__":
             img, gt = data_loaders[args.data_loader](source_file)
             target_rows, target_cols = q * (img.shape[0] // q), q * (img.shape[1] // q)
 
-            if img.ndim == 2:
-                img = img[..., None]
-            img = img[:target_rows, :target_cols, :]
+            img = img[:target_rows, :target_cols]
             gt = gt[:target_rows, :target_cols]
 
             pred = np.zeros([target_rows, target_cols, n_classes])
