@@ -44,7 +44,7 @@ class App:
         self.image_path = self.prob_df.iloc[np.random.randint(0, len(self.prob_df))].paths
         basename, _ = os.path.splitext(os.path.basename(self.image_path))
         _, _, self.pred_path, self.scribble_path = generate_pool_paths(self.pool_folder, basename)
-        image, gt = data_loaders[args.data_loader](self.image_path)
+        image, gt, _ = data_loaders[args.data_loader](self.image_path)
 
         if self.annotate_gt:
             image = multichannel2rgb(gt)

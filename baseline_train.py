@@ -7,6 +7,7 @@ import tensorflow as tf
 from tensorflow.keras import backend as K
 from tensorflow.keras import optimizers, callbacks
 import pandas as pd
+from tqdm import tqdm
 
 import constants
 from models.architectures import model_types, q_factor
@@ -29,7 +30,7 @@ if 'macOS' in platform.platform():
 
 def load_data(image_paths, args):
     n = len(image_paths)
-    img, gt = data_loaders[args.data_loader](image_paths[0])
+    img, gt, _ = data_loaders[args.data_loader](image_paths[0])
     target_rows, target_cols = q_factor[args.model] * (img.shape[0] // q_factor[args.model]), q_factor[args.model] * (img.shape[1] // q_factor[args.model])
 
     if img.ndim == 2:
@@ -38,16 +39,17 @@ def load_data(image_paths, args):
     n_rows, n_cols, n_input_channels = sample_image.shape
     x = np.zeros((n, n_rows, n_cols, n_input_channels))
     y = np.zeros((n, n_rows, n_cols, constants.n_classes))
-    for i in range(n):
+    print('Loading validation data')
+    for i in tqdm(range(n)):
         image_path = pathlib.Path(image_paths[i])
-        img, gt = data_loaders[args.data_loader](image_path)
+        img, gt, _ = data_loaders[args.data_loader](image_path)
         x[i] = normalize_image(img[:target_rows, :target_cols])
         y[i] = gt[:target_rows, :target_cols]
     return x, y
 
 
 def data_generator(image_paths, args):
-    img, gt = data_loaders[args.data_loader](image_paths[0])
+    img, gt, _ = data_loaders[args.data_loader](image_paths[0])
     target_rows, target_cols = q_factor[args.model] * (img.shape[0] // q_factor[args.model]), q_factor[args.model] * (img.shape[1] // q_factor[args.model])
 
     sample_image = img[:target_rows, :target_cols, :]
@@ -57,7 +59,7 @@ def data_generator(image_paths, args):
     while True:
         for i in range(args.batch_size):
             image_path = pathlib.Path(np.random.choice(image_paths))
-            img, gt = data_loaders[args.data_loader](image_path)
+            img, gt, _ = data_loaders[args.data_loader](image_path)
             if img.ndim == 2:
                 img = img[..., None]
             x[i] = normalize_image(img[:target_rows, :target_cols])
@@ -83,6 +85,8 @@ def config_parser():
     parser.add_argument('--model', type=str, help='model arch')
     parser.add_argument('--annotate_gt', action='store_true')
     parser.add_argument('--baseline_training_sizes', action='append')
+    parser.add_argument('--data_loader', type=str, help='the name of the data loading function')
+
     return parser
 
 

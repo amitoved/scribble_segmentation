@@ -53,7 +53,7 @@ def data_generator(args):
                 true = np.load(scribble_path)
 
                 if np.any(true):
-                    img, _ = data_loaders[args.data_loader](image_path)
+                    img, _, _ = data_loaders[args.data_loader](image_path)
                     x[i] = normalize_image(img)
                     y[i] = true.astype(int)
                     found_non_empty_scribble = True
@@ -62,7 +62,7 @@ def data_generator(args):
 
 def load_data(image_paths, args):
     n = len(image_paths)
-    img, gt = data_loaders[args.data_loader](image_paths[0])
+    img, gt, _ = data_loaders[args.data_loader](image_paths[0])
     target_rows, target_cols = q_factor[args.model] * (img.shape[0] // q_factor[args.model]), q_factor[args.model] * (img.shape[1] // q_factor[args.model])
 
     if img.ndim == 2:
@@ -73,7 +73,7 @@ def load_data(image_paths, args):
     y = np.zeros((n, n_rows, n_cols, constants.n_classes))
     for i in range(n):
         image_path = pathlib.Path(image_paths[i])
-        img, gt = data_loaders[args.data_loader](image_path)
+        img, gt, _ = data_loaders[args.data_loader](image_path)
         x[i] = normalize_image(img[:target_rows, :target_cols])
         y[i] = gt[:target_rows, :target_cols]
     return x, y

@@ -16,7 +16,7 @@ def kitti_road_loader(image_path):
     seg = imageio.imread(seg_path)
     seg = (seg == 7).astype(int)  # on vkitti, 7 is the the road
     seg = to_categorical(seg, num_classes=2)
-    return img, seg
+    return img, seg, True
 
 
 def siim_acr_loader(image_path):
