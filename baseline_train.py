@@ -54,10 +54,10 @@ def data_generator(image_paths, args):
 
     sample_image = img[:target_rows, :target_cols, :]
     n_rows, n_cols, n_input_channels = sample_image.shape
-    x = np.zeros((args.batch_size, n_rows, n_cols, n_input_channels))
-    y = np.zeros((args.batch_size, n_rows, n_cols, constants.n_classes))
+    x = np.zeros((args.batch, n_rows, n_cols, n_input_channels))
+    y = np.zeros((args.batch, n_rows, n_cols, constants.n_classes))
     while True:
-        for i in range(args.batch_size):
+        for i in range(args.batch):
             image_path = pathlib.Path(np.random.choice(image_paths))
             img, gt, _ = data_loaders[args.data_loader](image_path)
             if img.ndim == 2:
