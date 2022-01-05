@@ -94,8 +94,6 @@ if __name__ == '__main__':
     val_image_paths = list(pd.read_csv(os.path.join(val_pool, 'priorities.csv')).paths)
 
     val_x, val_y = load_data(val_image_paths, args)
-    val_x = val_x[:10]
-    val_y = val_y[:10]
     n_input_channels = val_x.shape[-1]
 
     for relative_training_set_size in args.baseline_training_sizes:
