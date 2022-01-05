@@ -6,9 +6,10 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras import backend as K
 from tensorflow.keras import optimizers, callbacks
+import pandas as pd
 
 import constants
-from models.architectures import model_types
+from models.architectures import model_types, q_factor
 from utils.data_loaders_utils import data_loaders
 from utils.general_utils import folder_picker
 from utils.image_utils import normalize_image
@@ -29,7 +30,7 @@ if 'macOS' in platform.platform():
 def load_data(image_paths, args):
     n = len(image_paths)
     img, gt = data_loaders[args.data_loader](image_paths[0])
-    target_rows, target_cols = args.q * (img.shape[0] // args.q), args.q * (img.shape[1] // args.q)
+    target_rows, target_cols = q_factor[args.model] * (img.shape[0] // q_factor[args.model]), q_factor[args.model] * (img.shape[1] // q_factor[args.model])
 
     if img.ndim == 2:
         img = img[..., None]
@@ -40,8 +41,6 @@ def load_data(image_paths, args):
     for i in range(n):
         image_path = pathlib.Path(image_paths[i])
         img, gt = data_loaders[args.data_loader](image_path)
-        if img.ndim == 2:
-            img = img[..., None]
         x[i] = normalize_image(img[:target_rows, :target_cols])
         y[i] = gt[:target_rows, :target_cols]
     return x, y
@@ -49,10 +48,8 @@ def load_data(image_paths, args):
 
 def data_generator(image_paths, args):
     img, gt = data_loaders[args.data_loader](image_paths[0])
-    target_rows, target_cols = args.q * (img.shape[0] // args.q), args.q * (img.shape[1] // args.q)
+    target_rows, target_cols = q_factor[args.model] * (img.shape[0] // q_factor[args.model]), q_factor[args.model] * (img.shape[1] // q_factor[args.model])
 
-    if img.ndim == 2:
-        img = img[..., None]
     sample_image = img[:target_rows, :target_cols, :]
     n_rows, n_cols, n_input_channels = sample_image.shape
     x = np.zeros((args.batch_size, n_rows, n_cols, n_input_channels))
@@ -83,7 +80,7 @@ def config_parser():
     parser.add_argument('--spe', type=int, help='steps per epoch')
     parser.add_argument('--batch', type=int, help='batchsize')
     parser.add_argument('--lr', type=float, help='learning rate')
-    parser.add_argument('--model_arch', type=str, help='model arch')
+    parser.add_argument('--model', type=str, help='model arch')
     parser.add_argument('--annotate_gt', action='store_true')
     parser.add_argument('--baseline_training_sizes', action='append')
     return parser
@@ -95,13 +92,13 @@ if __name__ == '__main__':
 
     training_pool = os.path.join(pool_folder, 'train')
     val_pool = os.path.join(pool_folder, 'val')
-    training_image_paths = [os.path.join(training_pool, file) for file in os.listdir(training_pool) if 'image_' in file]
-    val_image_paths = [os.path.join(val_pool, file) for file in os.listdir(val_pool) if 'image_' in file]
+    training_image_paths = list(pd.read_csv(os.path.join(training_pool, 'priorities.csv')).paths)
+    val_image_paths = list(pd.read_csv(os.path.join(val_pool, 'priorities.csv')).paths)
 
     val_x, val_y = load_data(val_image_paths, args)
     n_input_channels = val_x.shape[-1]
 
-    model = model_types[args.model_arch](n_input_channels)
+    model = model_types[args.model](n_input_channels)
     model.compile(loss=[weighted_cce], optimizer=optimizers.Adam(args.lr))
     for relative_training_set_size in args.baseline_training_sizes:
         training_set_size = int(float(relative_training_set_size) * len(training_image_paths))

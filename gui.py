@@ -40,8 +40,7 @@ class App:
             self.pool_folder = folder_picker(initialdir=constants.DATA_DIR, title='pick training folder')
             self.prob_df = pd.read_csv(os.path.join(os.path.join(self.pool_folder, 'priorities.csv')))
             self.timer_path = os.path.join(self.pool_folder, 'timer.txt')
-            self.scribble_paths = [pathlib.Path(self.pool_folder, file) for file in os.listdir(self.pool_folder) if
-                                   'scribble_' in file]
+
         self.image_path = self.prob_df.iloc[np.random.randint(0, len(self.prob_df))].paths
         basename, _ = os.path.splitext(os.path.basename(self.image_path))
         _, _, self.pred_path, self.scribble_path = generate_pool_paths(self.pool_folder, basename)
@@ -50,7 +49,7 @@ class App:
         if self.annotate_gt:
             image = multichannel2rgb(gt)
 
-        pred = np.load(self.pred_path)
+        pred = np.load(self.pred_path) / 255.
         pred = multichannel2rgb(pred)
         image = image / np.max(image)
         self.height_o, self.width_o, n_input_chanels = image.shape
@@ -143,7 +142,7 @@ class App:
         self.last_x, self.last_y = event.x, event.y
 
     def update_scribble(self):
-        scribble = np.load(self.scribble_path)
+        scribble = np.load(self.scribble_path)['arr_0']
         current_scribble = np.array(self.scribble)
         current_scribble = resize(current_scribble, (self.height_o, self.width_o), order=0, anti_aliasing=False)
         r, c = np.where(current_scribble != 255)
@@ -161,7 +160,7 @@ class App:
     def save(self):
         if np.any(np.array(self.scribble)):
             self.update_scribble()
-            np.save(self.scribble_path, self.scribble)
+            np.savez_compressed(self.scribble_path, self.scribble)
             print(self.scribble_path)
 
             with open(self.timer_path, 'a+') as f:

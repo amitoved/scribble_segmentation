@@ -22,6 +22,8 @@ def kitti_road_loader(image_path):
 def siim_acr_loader(image_path):
     dcm = dcmread(image_path)
     img = dcm.pixel_array
+    img = img[..., None]
+
     parent = Path(image_path).parent.parent.absolute()
     csvs = [os.path.join(parent, f) for f in os.listdir(parent) if f.endswith('csv')]
     df = pd.read_csv(csvs[0]).append(pd.read_csv(csvs[1]))
@@ -31,8 +33,6 @@ def siim_acr_loader(image_path):
         rle = [int(p) for p in encoded_pixels.split(' ')]
         seg = rle2mask(rle, img.shape[1], img.shape[0])
     seg = to_categorical(seg, num_classes=2)
-    if img.ndim == 2:
-        img = img[..., None]
     return img, seg
 
 

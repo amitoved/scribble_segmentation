@@ -66,7 +66,7 @@ def unet2d_8(n_input_channels):
     inputs = layers.Input(shape=(None, None, n_input_channels))
 
     # 128x128
-    conv1 = layers.Conv2D(2*n_filters, 3, padding='same', activation='relu')(inputs)
+    conv1 = layers.Conv2D(2 * n_filters, 3, padding='same', activation='relu')(inputs)
     pool1 = layers.MaxPooling2D(pool_size=2)(conv1)
 
     # 64x64
@@ -129,7 +129,6 @@ def unet2d_8(n_input_channels):
         axis=3)
     up14 = layers.SeparableConv2D(n_filters, 3, padding='same', activation='relu')(up14)
 
-
     # 64x64
     up15 = layers.concatenate(
         [layers.Lambda(lambda image: unpool2xBilinear(image))(up14), conv3],
@@ -148,10 +147,13 @@ def unet2d_8(n_input_channels):
         axis=3)
     up17 = layers.SeparableConv2D(n_filters, 3, padding='same', activation='relu')(up17)
 
-
     outputs = layers.Conv2D(constants.n_classes, 1, padding='same', activation='softmax')(up17)
     model = models.Model([inputs], [outputs], name='unet2d')
     return model
 
+
 model_types = {'unet2d_5': unet2d_5,
-                'unet2d_8': unet2d_8}
+               'unet2d_8': unet2d_8}
+
+q_factor = {'unet2d_5': 32,
+            'unet2d_8': 32}

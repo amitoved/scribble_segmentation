@@ -10,7 +10,7 @@ from tensorflow.keras import optimizers
 from tqdm import tqdm
 
 import constants
-from models.architectures import model_types
+from models.architectures import model_types, q_factor
 from utils.data_loaders_utils import data_loaders
 from utils.general_utils import folder_picker, generate_pool_paths
 from utils.image_utils import normalize_image, img_tv
@@ -29,28 +29,19 @@ if 'macOS' in platform.platform():
 #     print("No GPU found")
 
 
-def data_generator(args, data_type='train'):
-    if data_type == 'train':
-        df = pd.read_csv(os.path.join(pool_folder, 'train', 'priorities.csv'))
-        image_paths = list(df['paths'])
-    else:
-        image_paths = [pathlib.Path(os.path.join(pool_folder, 'val'), file) for file in os.listdir(pool_folder) if
-                       'image_' in file]
+def data_generator(args):
+    df = pd.read_csv(os.path.join(pool_folder, 'train', 'priorities.csv'))
+    image_paths = list(df['paths'])
 
     sample_image, _ = data_loaders[args.data_loader](image_paths[0])
     n_rows, n_cols, n_input_channels = sample_image.shape
     x = np.zeros((args.batch_size, n_rows, n_cols, n_input_channels))
     y = np.zeros((args.batch_size, n_rows, n_cols, constants.n_classes))
     while True:
-        if data_type == 'train':
-            df = pd.read_csv(os.path.join(pool_folder, 'train', 'priorities.csv'))
-            image_paths = list(df['paths'])
-            priorities = list(df['score'])
-            priorities = np.array(priorities) / np.sum(priorities)
-        else:
-            image_paths = [pathlib.Path(os.path.join(pool_folder, 'val'), file) for file in os.listdir(pool_folder) if
-                           'image_' in file]
-            priorities = np.array([1.] * len(image_paths)) / len(image_paths)
+        df = pd.read_csv(os.path.join(pool_folder, 'train', 'priorities.csv'))
+        image_paths = list(df['paths'])
+        priorities = list(df['score'])
+        priorities = np.array(priorities) / np.sum(priorities)
 
         for i in range(args.batch_size):
             found_non_empty_scribble = False
@@ -58,11 +49,8 @@ def data_generator(args, data_type='train'):
                 image_path = np.random.choice(image_paths, p=priorities)
                 image_path = pathlib.Path(image_path)
                 basename, _ = os.path.splitext(os.path.basename(image_path))
-                _, gt_path, _, scribble_path = generate_pool_paths(os.path.join(pool_folder, data_type), basename)
-                if data_type == 'train':
-                    true = np.load(scribble_path)
-                else:
-                    true = np.load(gt_path)
+                _, gt_path, _, scribble_path = generate_pool_paths(os.path.join(pool_folder, 'train'), basename)
+                true = np.load(scribble_path)
 
                 if np.any(true):
                     img, _ = data_loaders[args.data_loader](image_path)
@@ -70,6 +58,25 @@ def data_generator(args, data_type='train'):
                     y[i] = true.astype(int)
                     found_non_empty_scribble = True
         yield x, y
+
+
+def load_data(image_paths, args):
+    n = len(image_paths)
+    img, gt = data_loaders[args.data_loader](image_paths[0])
+    target_rows, target_cols = q_factor[args.model] * (img.shape[0] // q_factor[args.model]), q_factor[args.model] * (img.shape[1] // q_factor[args.model])
+
+    if img.ndim == 2:
+        img = img[..., None]
+    sample_image = img[:target_rows, :target_cols, :]
+    n_rows, n_cols, n_input_channels = sample_image.shape
+    x = np.zeros((n, n_rows, n_cols, n_input_channels))
+    y = np.zeros((n, n_rows, n_cols, constants.n_classes))
+    for i in range(n):
+        image_path = pathlib.Path(image_paths[i])
+        img, gt = data_loaders[args.data_loader](image_path)
+        x[i] = normalize_image(img[:target_rows, :target_cols])
+        y[i] = gt[:target_rows, :target_cols]
+    return x, y
 
 
 def weighted_cce(y_true, y_pred):
@@ -118,6 +125,6 @@ if __name__ == '__main__':
             pred = model.predict(image[None, ...])[0]
             score = img_tv(pred)
             df.append([image_path, score])
-            np.save(arr=pred, file=pred_path)
+            np.save(arr=(pred * 255).astype(np.uint8), file=pred_path)
         df = pd.DataFrame.from_records(df, columns=['paths', 'score'])
         df.to_csv(constants.PRIORITY_DF)
