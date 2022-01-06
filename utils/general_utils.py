@@ -27,7 +27,7 @@ def generate_pool_paths(folder, suffix):
     image_path = os.path.join(folder, 'image_' + str(suffix) + '.npy')
     gt_path = os.path.join(folder, 'gt_' + str(suffix) + '.npy')
     pred_path = os.path.join(folder, 'pred_' + str(suffix) + '.npy')
-    scribble_path = os.path.join(folder, 'scribble_' + str(suffix) + '.npy')
+    scribble_path = os.path.join(folder, 'scribble_' + str(suffix) + '.npz')
     return image_path, gt_path, pred_path, scribble_path
 
 
@@ -37,15 +37,15 @@ def rgb2tk(rgb):
 
 
 def rle2mask(rle, width, height):
-    mask = np.zeros(width * height, dtype=bool)
-    array = np.asarray([int(x) for x in rle.split()])
+    mask = np.zeros(width * height)
+    array = np.asarray([int(x) for x in rle])
     starts = array[0::2]
     lengths = array[1::2]
 
     current_position = 0
     for index, start in enumerate(starts):
         current_position += start
-        mask[current_position:current_position + lengths[index]] = True
+        mask[current_position:current_position + lengths[index]] = 1
         current_position += lengths[index]
 
-    return mask.reshape(width, height)
+    return mask.reshape(width, height).T

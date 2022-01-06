@@ -5,13 +5,15 @@ from time import time
 from tkinter import colorchooser, StringVar
 
 import configargparse
+import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import ImageTk, Image, ImageDraw
 from skimage.transform import resize
 
 import constants
-from utils.general_utils import rgb2tk, folder_picker
+from utils.data_loaders_utils import data_loaders
+from utils.general_utils import rgb2tk, folder_picker, generate_pool_paths
 from utils.image_utils import multichannel2rgb, generate_colormap
 
 
@@ -34,21 +36,20 @@ class App:
 
     def selecting_file(self, update=False):
         if not update:
-            self.pool_folder = folder_picker(initialdir=constants.DATA_DIR)
-            self.timer_path = os.path.join(self.pool_folder, 'train', 'timer.txt')
-            self.scribble_paths = [pathlib.Path(self.pool_folder, file) for file in os.listdir(self.pool_folder) if
-                                   'scribble_' in file]
-        self.scribble_path = np.random.choice(self.scribble_paths)
-        self.image_path = pathlib.Path(self.scribble_path.parent,
-                                       self.scribble_path.name.replace('scribble_', 'image_'))
-        self.gt_path = pathlib.Path(self.scribble_path.parent, self.scribble_path.name.replace('scribble_', 'gt_'))
-        self.pred_path = pathlib.Path(self.scribble_path.parent, self.scribble_path.name.replace('scribble_', 'pred_'))
+            print('Select the training folder')
+            self.pool_folder = folder_picker(initialdir=constants.DATA_DIR, title='pick training folder')
+            self.prob_df = pd.read_csv(os.path.join(os.path.join(self.pool_folder, 'priorities.csv')))
+            self.timer_path = os.path.join(self.pool_folder, 'timer.txt')
+
+        self.image_path = self.prob_df.iloc[np.random.randint(0, len(self.prob_df))].paths
+        basename, _ = os.path.splitext(os.path.basename(self.image_path))
+        _, _, self.pred_path, self.scribble_path = generate_pool_paths(self.pool_folder, basename)
+        image, gt, _ = data_loaders[args.data_loader](self.image_path)
+
         if self.annotate_gt:
-            image = np.load(self.gt_path)
-            image = 255 * multichannel2rgb(image)
-        else:
-            image = np.load(self.image_path)
-        pred = np.load(self.pred_path)
+            image = multichannel2rgb(gt)
+
+        pred = np.load(self.pred_path) / 255.
         pred = multichannel2rgb(pred)
         image = image / np.max(image)
         self.height_o, self.width_o, n_input_chanels = image.shape
@@ -126,22 +127,22 @@ class App:
         self.window.geometry(f'{screen_w}x{screen_h}')
 
     def get_x_and_y(self, event):
-        self.last_x, self.last_y = event.x, event.y
+        self.last_x, self.last_y = event.x_sample, event.y_sample
 
     def draw_smth(self, event):
         self.class_val = constants.classes_order.index(self.selected_class.get())
         pil_rgb = rgb2tk(tuple((255 * np.array(list(self.pil_colors[self.class_val]))).astype(int)[:-1]))
 
         brush_size = int(self.brush_size.get())
-        self.canvas.create_line((self.last_x, self.last_y, event.x, event.y), fill=pil_rgb, width=brush_size)
-        self.annotations[self.class_val].append([event.x, event.y])
+        self.canvas.create_line((self.last_x, self.last_y, event.x_sample, event.y_sample), fill=pil_rgb, width=brush_size)
+        self.annotations[self.class_val].append([event.x_sample, event.y_sample])
 
         img1 = ImageDraw.Draw(self.scribble)
-        img1.line((self.last_x, self.last_y, event.x, event.y), fill=self.class_val, width=brush_size)
-        self.last_x, self.last_y = event.x, event.y
+        img1.line((self.last_x, self.last_y, event.x_sample, event.y_sample), fill=self.class_val, width=brush_size)
+        self.last_x, self.last_y = event.x_sample, event.y_sample
 
     def update_scribble(self):
-        scribble = np.load(self.scribble_path)
+        scribble = np.load(self.scribble_path)['arr_0']
         current_scribble = np.array(self.scribble)
         current_scribble = resize(current_scribble, (self.height_o, self.width_o), order=0, anti_aliasing=False)
         r, c = np.where(current_scribble != 255)
@@ -159,7 +160,7 @@ class App:
     def save(self):
         if np.any(np.array(self.scribble)):
             self.update_scribble()
-            np.save(self.scribble_path, self.scribble)
+            np.savez_compressed(self.scribble_path, self.scribble)
             print(self.scribble_path)
 
             with open(self.timer_path, 'a+') as f:
@@ -192,6 +193,9 @@ def config_parser():
     # parser.add_argument('--batch', type=int, help='batchsize')
     # parser.add_argument('--lr', type=float, help='learning rate')
     parser.add_argument('--annotate_gt', action='store_true')
+    parser.add_argument('--data_loader', type=str, help='the name of the data loading function')
+    parser.add_argument('--q', type=int, help='the image size should be a multiplier of this number')
+
 
     return parser
 

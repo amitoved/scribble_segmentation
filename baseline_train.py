@@ -1,14 +1,16 @@
 import os
-import pathlib
 
 import configargparse
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 from tensorflow.keras import backend as K
 from tensorflow.keras import optimizers, callbacks
+from tqdm import tqdm
 
 import constants
-from models.architectures import models_types
+from models.architectures import model_types, q_factor
+from utils.data_loaders_utils import data_loaders
 from utils.general_utils import folder_picker
 from utils.image_utils import normalize_image
 
@@ -25,33 +27,37 @@ if 'macOS' in platform.platform():
 # else:
 #     print("No GPU found")
 
-def load_data(image_paths):
+def load_data(image_paths, args):
     n = len(image_paths)
-    sample_image = np.load(image_paths[0])
-    n_rows, n_cols, n_input_channels = sample_image.shape
-    x = np.zeros((n, n_rows, n_cols, n_input_channels))
+    img, gt, _ = data_loaders[args.data_loader](image_paths[0])
+    q = q_factor[args.model]
+    n_rows, n_cols = q * (img.shape[0] // q), q * (img.shape[1] // q)
+
+    input_channels = img.shape[-1]
+    x = np.zeros((n, n_rows, n_cols, input_channels))
     y = np.zeros((n, n_rows, n_cols, constants.n_classes))
-    for i in range(n):
-        image_path = pathlib.Path(image_paths[i])
-        gt_path = pathlib.Path(image_path.parent, image_path.name.replace('image_', 'gt_'))
-        img = np.load(image_path)
-        x[i] = normalize_image(img)
-        y[i] = np.load(gt_path)
+    print('Loading validation data')
+    for i, image_path in tqdm(enumerate(image_paths)):
+        img, gt, _ = data_loaders[args.data_loader](image_path)
+        x[i] = normalize_image(img[:n_rows, :n_cols])
+        y[i] = gt[:n_rows, :n_cols]
     return x, y
 
 
-def data_generator(image_paths, batch_size):
-    sample_image = np.load(image_paths[0])
-    n_rows, n_cols, n_input_channels = sample_image.shape
-    x = np.zeros((batch_size, n_rows, n_cols, n_input_channels))
-    y = np.zeros((batch_size, n_rows, n_cols, constants.n_classes))
+def data_generator(image_paths, args):
+    img, gt, _ = data_loaders[args.data_loader](image_paths[0])
+    q = q_factor[args.model]
+    n_rows, n_cols = q * (img.shape[0] // q), q * (img.shape[1] // q)
+
+    input_channels = img.shape[-1]
+    x = np.zeros((args.batch, n_rows, n_cols, input_channels))
+    y = np.zeros((args.batch, n_rows, n_cols, constants.n_classes))
     while True:
-        for i in range(batch_size):
-            image_path = pathlib.Path(np.random.choice(image_paths))
-            gt_path = pathlib.Path(image_path.parent, image_path.name.replace('image_', 'gt_'))
-            img = np.load(image_path)
-            x[i] = normalize_image(img)
-            y[i] = np.load(gt_path)
+        for i in range(args.batch):
+            image_path = np.random.choice(image_paths)
+            img, gt, _ = data_loaders[args.data_loader](image_path)
+            x[i] = normalize_image(img[:n_rows, :n_cols])
+            y[i] = gt[:n_rows, :n_cols]
         yield x, y
 
 
@@ -70,9 +76,11 @@ def config_parser():
     parser.add_argument('--spe', type=int, help='steps per epoch')
     parser.add_argument('--batch', type=int, help='batchsize')
     parser.add_argument('--lr', type=float, help='learning rate')
-    parser.add_argument('--model_arch', type=str, help='model arch')
+    parser.add_argument('--model', type=str, help='model arch')
     parser.add_argument('--annotate_gt', action='store_true')
     parser.add_argument('--baseline_training_sizes', action='append')
+    parser.add_argument('--data_loader', type=str, help='the name of the data loading function')
+
     return parser
 
 
@@ -82,15 +90,15 @@ if __name__ == '__main__':
 
     training_pool = os.path.join(pool_folder, 'train')
     val_pool = os.path.join(pool_folder, 'val')
-    training_image_paths = [os.path.join(training_pool, file) for file in os.listdir(training_pool) if 'image_' in file]
-    val_image_paths = [os.path.join(val_pool, file) for file in os.listdir(val_pool) if 'image_' in file]
+    training_image_paths = list(pd.read_csv(os.path.join(training_pool, 'priorities.csv')).paths)
+    val_image_paths = list(pd.read_csv(os.path.join(val_pool, 'priorities.csv')).paths)
 
-    val_x, val_y = load_data(val_image_paths)
+    val_x, val_y = load_data(val_image_paths, args)
     n_input_channels = val_x.shape[-1]
 
-    model = models_types[args.model_arch](n_input_channels)
-    model.compile(loss=[weighted_cce], optimizer=optimizers.Adam(args.lr))
     for relative_training_set_size in args.baseline_training_sizes:
+        model = model_types[args.model](n_input_channels)
+        model.compile(loss=[weighted_cce], optimizer=optimizers.Adam(args.lr))
         training_set_size = int(float(relative_training_set_size) * len(training_image_paths))
         print('##########')
         print(f'strating training_set_size = {training_set_size}')
@@ -99,8 +107,8 @@ if __name__ == '__main__':
 
         checkpoint_callback = callbacks.ModelCheckpoint(filepath=model_path, verbose=1, monitor='val_loss',
                                                         save_best_only=True, save_weights_only=False)
-        training_generator = data_generator(training_image_paths[:training_set_size], batch_size=args.batch)
+        training_generator = data_generator(training_image_paths[:training_set_size], args)
         training_log = model.fit(training_generator, validation_data=(val_x, val_y), steps_per_epoch=args.spe,
-                                 epochs=args.epochs, callbacks=[checkpoint_callback])
+                                 epochs=args.epochs, callbacks=[checkpoint_callback], validation_batch_size=1)
         np.save(log_path, training_log.history)
         np.load(log_path, allow_pickle=True)

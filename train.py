@@ -10,8 +10,9 @@ from tensorflow.keras import optimizers
 from tqdm import tqdm
 
 import constants
-from models.architectures import model_types
-from utils.general_utils import folder_picker
+from models.architectures import model_types, q_factor
+from utils.data_loaders_utils import data_loaders
+from utils.general_utils import folder_picker, generate_pool_paths
 from utils.image_utils import normalize_image, img_tv
 
 pool_folder = folder_picker(initialdir=constants.DATA_DIR)
@@ -28,47 +29,56 @@ if 'macOS' in platform.platform():
 #     print("No GPU found")
 
 
-def data_generator(batch_size, data_type='train'):
-    if data_type == 'train':
+def data_generator(args):
+    df = pd.read_csv(os.path.join(pool_folder, 'train', 'priorities.csv'))
+    image_paths = list(df['paths'])
+
+    sample_image, _, _ = data_loaders[args.data_loader](image_paths[0])
+    n_rows, n_cols, n_input_channels = sample_image.shape
+    x = np.zeros((args.batch, n_rows, n_cols, n_input_channels))
+    y = np.zeros((args.batch, n_rows, n_cols, constants.n_classes))
+    while True:
         df = pd.read_csv(os.path.join(pool_folder, 'train', 'priorities.csv'))
         image_paths = list(df['paths'])
-    else:
-        image_paths = [pathlib.Path(os.path.join(pool_folder, 'train'), file) for file in os.listdir(pool_folder) if
-                       'image_' in file]
+        priorities = list(df['score'])
+        priorities = np.array(priorities) / np.sum(priorities)
 
-    sample_image = np.load(image_paths[0])
-    n_rows, n_cols, n_input_channels = sample_image.shape
-    x = np.zeros((batch_size, n_rows, n_cols, n_input_channels))
-    y = np.zeros((batch_size, n_rows, n_cols, constants.n_classes))
-    while True:
-        if data_type == 'train':
-            df = pd.read_csv(os.path.join(pool_folder, 'train', 'priorities.csv'))
-            image_paths = list(df['paths'])
-            priorities = list(df['score'])
-            priorities = np.array(priorities) / np.sum(priorities)
-        else:
-            image_paths = [pathlib.Path(os.path.join(pool_folder, 'train'), file) for file in os.listdir(pool_folder) if
-                           'image_' in file]
-            priorities = np.array([1.] * len(image_paths)) / len(image_paths)
-
-        for i in range(batch_size):
+        for i in range(args.batch):
             found_non_empty_scribble = False
             while not found_non_empty_scribble:
                 image_path = np.random.choice(image_paths, p=priorities)
                 image_path = pathlib.Path(image_path)
-                if data_type == 'train':
-                    scribble_path = pathlib.Path(image_path.parent, image_path.name.replace('image_', 'scribble_'))
-                    true = np.load(scribble_path)
-                else:
-                    gt_path = pathlib.Path(image_path.parent, image_path.name.replace('image_', 'gt_'))
-                    true = np.load(gt_path)
+                basename, _ = os.path.splitext(os.path.basename(image_path))
+                _, gt_path, _, scribble_path = generate_pool_paths(os.path.join(pool_folder, 'train'), basename)
+                true = np.load(scribble_path)['arr_0']
 
                 if np.any(true):
-                    img = np.load(image_path)
+                    img, _, _ = data_loaders[args.data_loader](image_path)
                     x[i] = normalize_image(img)
                     y[i] = true.astype(int)
                     found_non_empty_scribble = True
         yield x, y
+
+
+def load_data(image_paths, args):
+    n = len(image_paths)
+    img, gt, _ = data_loaders[args.data_loader](image_paths[0])
+    target_rows, target_cols = q_factor[args.model] * (img.shape[0] // q_factor[args.model]), q_factor[args.model] * (
+                img.shape[1] // q_factor[args.model])
+
+    if img.ndim == 2:
+        img = img[..., None]
+    sample_image = img[:target_rows, :target_cols, :]
+    n_rows, n_cols, n_input_channels = sample_image.shape
+    x = np.zeros((n, n_rows, n_cols, n_input_channels))
+    y = np.zeros((n, n_rows, n_cols, constants.n_classes))
+    print('Loading validation data')
+    for i in tqdm(range(n)):
+        image_path = pathlib.Path(image_paths[i])
+        img, gt, _ = data_loaders[args.data_loader](image_path)
+        x[i] = normalize_image(img[:target_rows, :target_cols])
+        y[i] = gt[:target_rows, :target_cols]
+    return x, y
 
 
 def weighted_cce(y_true, y_pred):
@@ -84,10 +94,12 @@ def config_parser():
                         help='config file path')
     parser.add_argument('--epochs', type=int, help='number of epochs')
     parser.add_argument('--spe', type=int, help='steps per epoch')
-    parser.add_argument('--batch', type=int, help='batchsize')
+    parser.add_argument('--batch', type=int, help='batch size')
     parser.add_argument('--lr', type=float, help='learning rate')
     parser.add_argument('--annotate_gt', action='store_true')
     parser.add_argument('--model', type=str, help='model name')
+    parser.add_argument('--data_loader', type=str, help='the name of the data loading function')
+
     return parser
 
 
@@ -95,28 +107,31 @@ if __name__ == '__main__':
     parser = config_parser()
     args = parser.parse_args()
 
-    training_generator = data_generator(batch_size=args.batch)
-    validation_generator = data_generator(batch_size=args.batch, data_type='val')
-    x, y = next(training_generator)
-    n_input_channels = x.shape[-1]
+    training_generator = data_generator(args)
+    x_sample, _ = next(training_generator)
+
+    val_pool = os.path.join(pool_folder, 'val')
+    training_pool = os.path.join(pool_folder, 'train')
+    val_image_paths = list(pd.read_csv(os.path.join(val_pool, 'priorities.csv')).paths)
+    train_image_paths = list(pd.read_csv(os.path.join(training_pool, 'priorities.csv')).paths)
+
+    val_x, val_y = load_data(val_image_paths, args)
+
+    n_input_channels = x_sample.shape[-1]
     model = model_types[args.model](n_input_channels)
     model.compile(loss=[weighted_cce], optimizer=optimizers.Adam(args.lr))
 
-    image_paths = [pathlib.Path(pool_folder, file) for file in os.listdir(pool_folder) if 'image_' in file]
-    pred_paths = [pathlib.Path(image_path.parent, image_path.name.replace('image_', 'pred_')) for image_path in
-                  image_paths]
-    gt_paths = [pathlib.Path(image_path.parent, image_path.name.replace('image_', 'gt_')) for image_path in
-                image_paths]
+    pred_paths = [os.path.join(training_pool, os.path.basename(image_path)) for image_path in train_image_paths]
 
     while True:
-        model.fit(training_generator, validation_data=validation_generator, steps_per_epoch=args.spe,
+        model.fit(training_generator, validation_data=(val_x, val_y), steps_per_epoch=args.spe,
                   epochs=args.epochs)
         df = []
-        for image_path, pred_path in tqdm(zip(image_paths, pred_paths)):
-            image = np.load(image_path)
+        for image_path, pred_path in tqdm(zip(train_image_paths, pred_paths)):
+            image, _, _ = data_loaders[args.data_loader](image_path)
             pred = model.predict(image[None, ...])[0]
             score = img_tv(pred)
             df.append([image_path, score])
-            np.save(arr=pred, file=pred_path)
+            np.save(arr=(pred * 255).astype(np.uint8), file=pred_path)
         df = pd.DataFrame.from_records(df, columns=['paths', 'score'])
         df.to_csv(constants.PRIORITY_DF)
