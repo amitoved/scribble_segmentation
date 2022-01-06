@@ -127,19 +127,19 @@ class App:
         self.window.geometry(f'{screen_w}x{screen_h}')
 
     def get_x_and_y(self, event):
-        self.last_x, self.last_y = event.x, event.y
+        self.last_x, self.last_y = event.x_sample, event.y_sample
 
     def draw_smth(self, event):
         self.class_val = constants.classes_order.index(self.selected_class.get())
         pil_rgb = rgb2tk(tuple((255 * np.array(list(self.pil_colors[self.class_val]))).astype(int)[:-1]))
 
         brush_size = int(self.brush_size.get())
-        self.canvas.create_line((self.last_x, self.last_y, event.x, event.y), fill=pil_rgb, width=brush_size)
-        self.annotations[self.class_val].append([event.x, event.y])
+        self.canvas.create_line((self.last_x, self.last_y, event.x_sample, event.y_sample), fill=pil_rgb, width=brush_size)
+        self.annotations[self.class_val].append([event.x_sample, event.y_sample])
 
         img1 = ImageDraw.Draw(self.scribble)
-        img1.line((self.last_x, self.last_y, event.x, event.y), fill=self.class_val, width=brush_size)
-        self.last_x, self.last_y = event.x, event.y
+        img1.line((self.last_x, self.last_y, event.x_sample, event.y_sample), fill=self.class_val, width=brush_size)
+        self.last_x, self.last_y = event.x_sample, event.y_sample
 
     def update_scribble(self):
         scribble = np.load(self.scribble_path)['arr_0']

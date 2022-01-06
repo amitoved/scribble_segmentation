@@ -33,24 +33,24 @@ def data_generator(args):
     df = pd.read_csv(os.path.join(pool_folder, 'train', 'priorities.csv'))
     image_paths = list(df['paths'])
 
-    sample_image, _ = data_loaders[args.data_loader](image_paths[0])
+    sample_image, _, _ = data_loaders[args.data_loader](image_paths[0])
     n_rows, n_cols, n_input_channels = sample_image.shape
-    x = np.zeros((args.batch_size, n_rows, n_cols, n_input_channels))
-    y = np.zeros((args.batch_size, n_rows, n_cols, constants.n_classes))
+    x = np.zeros((args.batch, n_rows, n_cols, n_input_channels))
+    y = np.zeros((args.batch, n_rows, n_cols, constants.n_classes))
     while True:
         df = pd.read_csv(os.path.join(pool_folder, 'train', 'priorities.csv'))
         image_paths = list(df['paths'])
         priorities = list(df['score'])
         priorities = np.array(priorities) / np.sum(priorities)
 
-        for i in range(args.batch_size):
+        for i in range(args.batch):
             found_non_empty_scribble = False
             while not found_non_empty_scribble:
                 image_path = np.random.choice(image_paths, p=priorities)
                 image_path = pathlib.Path(image_path)
                 basename, _ = os.path.splitext(os.path.basename(image_path))
                 _, gt_path, _, scribble_path = generate_pool_paths(os.path.join(pool_folder, 'train'), basename)
-                true = np.load(scribble_path)
+                true = np.load(scribble_path)['arr_0']
 
                 if np.any(true):
                     img, _, _ = data_loaders[args.data_loader](image_path)
@@ -92,10 +92,12 @@ def config_parser():
                         help='config file path')
     parser.add_argument('--epochs', type=int, help='number of epochs')
     parser.add_argument('--spe', type=int, help='steps per epoch')
-    parser.add_argument('--batch', type=int, help='batchsize')
+    parser.add_argument('--batch', type=int, help='batch size')
     parser.add_argument('--lr', type=float, help='learning rate')
     parser.add_argument('--annotate_gt', action='store_true')
     parser.add_argument('--model', type=str, help='model name')
+    parser.add_argument('--data_loader', type=str, help='the name of the data loading function')
+
     return parser
 
 
@@ -103,10 +105,14 @@ if __name__ == '__main__':
     parser = config_parser()
     args = parser.parse_args()
 
-    training_generator = data_generator(batch_size=args.batch)
-    validation_generator = data_generator(batch_size=args.batch, data_type='val')
-    x, y = next(training_generator)
-    n_input_channels = x.shape[-1]
+    training_generator = data_generator(args)
+    x_sample, _ = next(training_generator)
+
+    val_pool = os.path.join(pool_folder, 'val')
+    val_image_paths = list(pd.read_csv(os.path.join(val_pool, 'priorities.csv')).paths)
+    val_x, val_y = load_data(val_image_paths, args)
+
+    n_input_channels = x_sample.shape[-1]
     model = model_types[args.model](n_input_channels)
     model.compile(loss=[weighted_cce], optimizer=optimizers.Adam(args.lr))
 
@@ -117,7 +123,7 @@ if __name__ == '__main__':
                 image_paths]
 
     while True:
-        model.fit(training_generator, validation_data=validation_generator, steps_per_epoch=args.spe,
+        model.fit(training_generator, validation_data=(val_x, val_y), steps_per_epoch=args.spe,
                   epochs=args.epochs)
         df = []
         for image_path, pred_path in tqdm(zip(image_paths, pred_paths)):
