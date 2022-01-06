@@ -71,7 +71,8 @@ def load_data(image_paths, args):
     n_rows, n_cols, n_input_channels = sample_image.shape
     x = np.zeros((n, n_rows, n_cols, n_input_channels))
     y = np.zeros((n, n_rows, n_cols, constants.n_classes))
-    for i in range(n):
+    print('Loading validation data')
+    for i in tqdm(range(n)):
         image_path = pathlib.Path(image_paths[i])
         img, gt, _ = data_loaders[args.data_loader](image_path)
         x[i] = normalize_image(img[:target_rows, :target_cols])
