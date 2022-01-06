@@ -144,7 +144,8 @@ class App:
     def update_scribble(self):
         scribble = np.load(self.scribble_path)['arr_0']
         current_scribble = np.array(self.scribble)
-        current_scribble = resize(current_scribble, (self.height_o, self.width_o), order=0, anti_aliasing=False)
+        current_scribble = resize(current_scribble, (self.height_o, self.width_o), order=0, anti_aliasing=False,
+                                  preserve_range=True)
         r, c = np.where(current_scribble != 255)
         val = current_scribble[r, c].astype(int)
         scribble[r, c, val.astype(int)] = scribble[r, c, val] == False
