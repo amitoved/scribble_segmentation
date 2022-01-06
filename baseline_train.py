@@ -111,4 +111,4 @@ if __name__ == '__main__':
         training_log = model.fit(training_generator, validation_data=(val_x, val_y), steps_per_epoch=args.spe,
                                  epochs=args.epochs, callbacks=[checkpoint_callback], validation_batch_size=1)
         np.save(log_path, training_log.history)
-        np.load(log_path, allow_pickle=True)
+print('Done.')
