@@ -63,7 +63,8 @@ def data_generator(args):
 def load_data(image_paths, args):
     n = len(image_paths)
     img, gt, _ = data_loaders[args.data_loader](image_paths[0])
-    target_rows, target_cols = q_factor[args.model] * (img.shape[0] // q_factor[args.model]), q_factor[args.model] * (img.shape[1] // q_factor[args.model])
+    target_rows, target_cols = q_factor[args.model] * (img.shape[0] // q_factor[args.model]), q_factor[args.model] * (
+            img.shape[1] // q_factor[args.model])
 
     if img.ndim == 2:
         img = img[..., None]
@@ -110,24 +111,23 @@ if __name__ == '__main__':
     x_sample, _ = next(training_generator)
 
     val_pool = os.path.join(pool_folder, 'val')
+    training_pool = os.path.join(pool_folder, 'train')
     val_image_paths = list(pd.read_csv(os.path.join(val_pool, 'priorities.csv')).paths)
+    train_image_paths = list(pd.read_csv(os.path.join(training_pool, 'priorities.csv')).paths)
+
     val_x, val_y = load_data(val_image_paths, args)
 
     n_input_channels = x_sample.shape[-1]
     model = model_types[args.model](n_input_channels)
     model.compile(loss=[weighted_cce], optimizer=optimizers.Adam(args.lr))
 
-    image_paths = [pathlib.Path(pool_folder, file) for file in os.listdir(pool_folder) if 'image_' in file]
-    pred_paths = [pathlib.Path(image_path.parent, image_path.name.replace('image_', 'pred_')) for image_path in
-                  image_paths]
-    gt_paths = [pathlib.Path(image_path.parent, image_path.name.replace('image_', 'gt_')) for image_path in
-                image_paths]
+    pred_paths = [os.path.join(training_pool, os.path.basename(image_path)) for image_path in train_image_paths]
 
     while True:
         model.fit(training_generator, validation_data=(val_x, val_y), steps_per_epoch=args.spe,
                   epochs=args.epochs)
         df = []
-        for image_path, pred_path in tqdm(zip(image_paths, pred_paths)):
+        for image_path, pred_path in tqdm(zip(train_image_paths, pred_paths)):
             image = np.load(image_path)
             pred = model.predict(image[None, ...])[0]
             score = img_tv(pred)
