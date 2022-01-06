@@ -128,7 +128,7 @@ if __name__ == '__main__':
                   epochs=args.epochs)
         df = []
         for image_path, pred_path in tqdm(zip(train_image_paths, pred_paths)):
-            image = np.load(image_path)
+            image, _, _ = data_loaders[args.data_loader](image_path)
             pred = model.predict(image[None, ...])[0]
             score = img_tv(pred)
             df.append([image_path, score])
