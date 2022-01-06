@@ -64,7 +64,7 @@ def load_data(image_paths, args):
     n = len(image_paths)
     img, gt, _ = data_loaders[args.data_loader](image_paths[0])
     target_rows, target_cols = q_factor[args.model] * (img.shape[0] // q_factor[args.model]), q_factor[args.model] * (
-            img.shape[1] // q_factor[args.model])
+                img.shape[1] // q_factor[args.model])
 
     if img.ndim == 2:
         img = img[..., None]

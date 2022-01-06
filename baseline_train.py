@@ -1,12 +1,11 @@
 import os
-import pathlib
 
 import configargparse
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 from tensorflow.keras import backend as K
 from tensorflow.keras import optimizers, callbacks
-import pandas as pd
 from tqdm import tqdm
 
 import constants
@@ -31,39 +30,34 @@ if 'macOS' in platform.platform():
 def load_data(image_paths, args):
     n = len(image_paths)
     img, gt, _ = data_loaders[args.data_loader](image_paths[0])
-    target_rows, target_cols = q_factor[args.model] * (img.shape[0] // q_factor[args.model]), q_factor[args.model] * (img.shape[1] // q_factor[args.model])
+    q = q_factor[args.model]
+    n_rows, n_cols = q * (img.shape[0] // q), q * (img.shape[1] // q)
 
-    if img.ndim == 2:
-        img = img[..., None]
-    sample_image = img[:target_rows, :target_cols, :]
-    n_rows, n_cols, n_input_channels = sample_image.shape
-    x = np.zeros((n, n_rows, n_cols, n_input_channels))
+    input_channels = img.shape[-1]
+    x = np.zeros((n, n_rows, n_cols, input_channels))
     y = np.zeros((n, n_rows, n_cols, constants.n_classes))
     print('Loading validation data')
-    for i in tqdm(range(n)):
-        image_path = pathlib.Path(image_paths[i])
+    for i, image_path in tqdm(enumerate(image_paths)):
         img, gt, _ = data_loaders[args.data_loader](image_path)
-        x[i] = normalize_image(img[:target_rows, :target_cols])
-        y[i] = gt[:target_rows, :target_cols]
+        x[i] = normalize_image(img[:n_rows, :n_cols])
+        y[i] = gt[:n_rows, :n_cols]
     return x, y
 
 
 def data_generator(image_paths, args):
     img, gt, _ = data_loaders[args.data_loader](image_paths[0])
-    target_rows, target_cols = q_factor[args.model] * (img.shape[0] // q_factor[args.model]), q_factor[args.model] * (img.shape[1] // q_factor[args.model])
+    q = q_factor[args.model]
+    n_rows, n_cols = q * (img.shape[0] // q), q * (img.shape[1] // q)
 
-    sample_image = img[:target_rows, :target_cols, :]
-    n_rows, n_cols, n_input_channels = sample_image.shape
-    x = np.zeros((args.batch, n_rows, n_cols, n_input_channels))
+    input_channels = img.shape[-1]
+    x = np.zeros((args.batch, n_rows, n_cols, input_channels))
     y = np.zeros((args.batch, n_rows, n_cols, constants.n_classes))
     while True:
         for i in range(args.batch):
-            image_path = pathlib.Path(np.random.choice(image_paths))
+            image_path = np.random.choice(image_paths)
             img, gt, _ = data_loaders[args.data_loader](image_path)
-            if img.ndim == 2:
-                img = img[..., None]
-            x[i] = normalize_image(img[:target_rows, :target_cols])
-            y[i] = gt[:target_rows, :target_cols]
+            x[i] = normalize_image(img[:n_rows, :n_cols])
+            y[i] = gt[:n_rows, :n_cols]
         yield x, y
 
 
@@ -102,9 +96,9 @@ if __name__ == '__main__':
     val_x, val_y = load_data(val_image_paths, args)
     n_input_channels = val_x.shape[-1]
 
-    model = model_types[args.model](n_input_channels)
-    model.compile(loss=[weighted_cce], optimizer=optimizers.Adam(args.lr))
     for relative_training_set_size in args.baseline_training_sizes:
+        model = model_types[args.model](n_input_channels)
+        model.compile(loss=[weighted_cce], optimizer=optimizers.Adam(args.lr))
         training_set_size = int(float(relative_training_set_size) * len(training_image_paths))
         print('##########')
         print(f'strating training_set_size = {training_set_size}')
@@ -115,6 +109,6 @@ if __name__ == '__main__':
                                                         save_best_only=True, save_weights_only=False)
         training_generator = data_generator(training_image_paths[:training_set_size], args)
         training_log = model.fit(training_generator, validation_data=(val_x, val_y), steps_per_epoch=args.spe,
-                                 epochs=args.epochs, callbacks=[checkpoint_callback])
+                                 epochs=args.epochs, callbacks=[checkpoint_callback], validation_batch_size=1)
         np.save(log_path, training_log.history)
         np.load(log_path, allow_pickle=True)
