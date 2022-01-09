@@ -9,11 +9,13 @@ import numpy as np
 import pandas as pd
 from PIL import ImageTk, Image, ImageDraw
 from skimage.transform import resize
+from tensorflow.keras.models import load_model
 
 import constants
+import models.architectures
 from utils.data_loaders_utils import data_loaders
-from utils.general_utils import rgb2tk, folder_picker, generate_pool_paths
-from utils.image_utils import multichannel2rgb, generate_colormap
+from utils.general_utils import rgb2tk, folder_picker, get_pool_paths
+from utils.image_utils import multichannel2rgb, generate_colormap, normalize_image
 
 
 class App:
@@ -33,24 +35,49 @@ class App:
         self.selecting_file()
         self.window.mainloop()
 
+    def generator(self):
+
+        last_modified = None
+        while True:
+            self.image_path = str(self.prob_df.sample(n=1).iloc[0].paths)
+            basename, _ = os.path.splitext(os.path.basename(self.image_path))
+            _, _, self.pred_path, self.scribble_path = get_pool_paths(self.pool_folder, basename)
+            image, gt, _ = data_loaders[args.data_loader](self.image_path)
+            image = normalize_image(image)
+            if args.pred_on_the_fly:
+                model_path = os.path.abspath(os.path.join(self.pool_folder, '..', f'scribble_model.h5'))
+                if os.path.exists(model_path):
+                    if os.path.getmtime(model_path) != last_modified:
+                        last_modified = os.path.getmtime(model_path)
+                        model = load_model(model_path,
+                                           custom_objects={'unpool2xBilinear': models.architectures.unpool2xBilinear,
+                                                           'weighted_cce': models.architectures.weighted_cce})
+                    pred = model.predict(image[None, ...])[0]
+                else:
+                    pred = np.zeros_like(gt)
+            else:
+                pred = np.load(self.pred_path) / 255.
+
+            if self.annotate_gt:
+                yield gt, pred
+            else:
+                yield image, pred
+
     def selecting_file(self, update=False):
         if not update:
             print('Select the training folder')
             self.pool_folder = folder_picker(initialdir=constants.DATA_DIR, title='pick training folder')
             self.prob_df = pd.read_csv(os.path.join(os.path.join(self.pool_folder, 'priorities.csv')))
             self.timer_path = os.path.join(self.pool_folder, 'timer.txt')
-
-        self.image_path = self.prob_df.iloc[np.random.randint(0, len(self.prob_df))].paths
-        basename, _ = os.path.splitext(os.path.basename(self.image_path))
-        _, _, self.pred_path, self.scribble_path = generate_pool_paths(self.pool_folder, basename)
-        image, gt, _ = data_loaders[args.data_loader](self.image_path)
+            data_generator = self.generator()
 
         if self.annotate_gt:
+            gt, pred = next(data_generator)
             image = multichannel2rgb(gt)
-
-        pred = np.load(self.pred_path) / 255.
+        else:
+            image, pred = next(data_generator)
+            image = image / np.max(image)
         pred = multichannel2rgb(pred)
-        image = image / np.max(image)
         self.height_o, self.width_o, n_input_chanels = image.shape
 
         if n_input_chanels == 1:
@@ -192,6 +219,7 @@ def config_parser():
     parser.add_argument('--annotate_gt', action='store_true')
     parser.add_argument('--data_loader', type=str, help='the name of the data loading function')
     parser.add_argument('--q', type=int, help='the image size should be a multiplier of this number')
+    parser.add_argument('--pred_on_the_fly', type=bool)
 
     return parser
 
@@ -200,5 +228,4 @@ if __name__ == '__main__':
     parser = config_parser()
     args = parser.parse_args()
     print(args)
-
     App(args)

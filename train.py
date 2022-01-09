@@ -3,15 +3,13 @@ import os
 import configargparse
 import numpy as np
 import pandas as pd
-import tensorflow as tf
-from tensorflow.keras import backend as K
-from tensorflow.keras import optimizers
+from tensorflow.keras import optimizers, callbacks
 from tqdm import tqdm
 
 import constants
-from models.architectures import model_types, q_factor
+from models.architectures import model_types, q_factor, weighted_cce
 from utils.data_loaders_utils import data_loaders
-from utils.general_utils import folder_picker, generate_pool_paths
+from utils.general_utils import folder_picker, get_pool_paths
 from utils.image_utils import normalize_image, img_tv
 
 pool_folder = folder_picker(initialdir=constants.DATA_DIR)
@@ -47,7 +45,7 @@ def data_generator(args):
             while not found_non_empty_scribble:
                 image_path = np.random.choice(image_paths, p=priorities)
                 basename, _ = os.path.splitext(os.path.basename(image_path))
-                _, gt_path, _, scribble_path = generate_pool_paths(os.path.join(pool_folder, 'train'), basename)
+                _, gt_path, _, scribble_path = get_pool_paths(os.path.join(pool_folder, 'train'), basename)
                 scribble = np.load(scribble_path)['arr_0']
 
                 if np.any(scribble):
@@ -76,13 +74,6 @@ def load_data(image_paths, args):
     return x, y
 
 
-def weighted_cce(y_true, y_pred):
-    weights = tf.reduce_sum(y_true, axis=-1, keepdims=True)
-    y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
-    loss = -K.sum(tf.reduce_sum(y_true * K.log(y_pred), axis=-1, keepdims=True) * weights, -1)
-    return loss
-
-
 def config_parser():
     parser = configargparse.ArgumentParser(ignore_unknown_config_file_keys=True)
     parser.add_argument('--config', is_config_file=True,
@@ -94,7 +85,7 @@ def config_parser():
     parser.add_argument('--annotate_gt', action='store_true')
     parser.add_argument('--model', type=str, help='model name')
     parser.add_argument('--data_loader', type=str, help='the name of the data loading function')
-
+    parser.add_argument('--pred_on_the_fly', type=bool)
     return parser
 
 
@@ -112,18 +103,21 @@ if __name__ == '__main__':
     n_input_channels = val_x.shape[-1]
     model = model_types[args.model](n_input_channels)
     model.compile(loss=[weighted_cce], optimizer=optimizers.Adam(args.lr))
-
-    pred_paths = [os.path.join(training_pool, os.path.basename(image_path)) for image_path in train_image_paths]
+    model_path = os.path.join(pool_folder, f'scribble_model.h5')
+    checkpoint_callback = callbacks.ModelCheckpoint(filepath=model_path, verbose=1, monitor='val_loss',
+                                                    save_best_only=True, save_weights_only=False)
 
     while True:
         model.fit(training_generator, validation_data=(val_x, val_y), steps_per_epoch=args.spe,
-                  epochs=args.epochs, validation_batch_size=1)
-        df = []
-        for image_path, pred_path in tqdm(zip(train_image_paths, pred_paths)):
-            image, _, _ = data_loaders[args.data_loader](image_path)
-            pred = model.predict(image[None, ...])[0]
-            score = img_tv(pred)
-            df.append([image_path, score])
-            np.save(arr=(pred * 255).astype(np.uint8), file=pred_path)
-        df = pd.DataFrame.from_records(df, columns=['paths', 'score'])
-        df.to_csv(constants.PRIORITY_DF)
+                  epochs=args.epochs, callbacks=[checkpoint_callback], validation_batch_size=1)
+        if not args.pred_on_the_fly:
+            pred_paths = [os.path.join(training_pool, os.path.basename(image_path)) for image_path in train_image_paths]
+            df = []
+            for image_path, pred_path in tqdm(zip(train_image_paths, pred_paths)):
+                image, _, _ = data_loaders[args.data_loader](image_path)
+                pred = model.predict(image[None, ...])[0]
+                score = img_tv(pred)
+                df.append([image_path, score])
+                np.save(arr=(pred * 255).astype(np.uint8), file=pred_path)
+            df = pd.DataFrame.from_records(df, columns=['paths', 'score'])
+            df.to_csv(constants.PRIORITY_DF)

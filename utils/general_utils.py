@@ -23,7 +23,7 @@ def file_picker(initialdir=None, title=None):
     return file_path
 
 
-def generate_pool_paths(folder, suffix):
+def get_pool_paths(folder, suffix):
     image_path = os.path.join(folder, 'image_' + str(suffix) + '.npy')
     gt_path = os.path.join(folder, 'gt_' + str(suffix) + '.npy')
     pred_path = os.path.join(folder, 'pred_' + str(suffix) + '.npy')

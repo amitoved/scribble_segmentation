@@ -1,7 +1,15 @@
 import tensorflow as tf
+import tensorflow.keras.backend as K
 from tensorflow.keras import layers, models
 
 import constants
+
+
+def weighted_cce(y_true, y_pred):
+    weights = tf.reduce_sum(y_true, axis=-1, keepdims=True)
+    y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
+    loss = -K.sum(tf.reduce_sum(y_true * K.log(y_pred), axis=-1, keepdims=True) * weights, -1)
+    return loss
 
 
 def unpool2xBilinear(inputs, name='unpool2xBilinear'):

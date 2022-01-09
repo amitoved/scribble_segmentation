@@ -9,7 +9,7 @@ from tqdm import tqdm
 from constants import DATA_DIR, n_classes, SEED
 from models.architectures import q_factor
 from utils.data_loaders_utils import data_loaders
-from utils.general_utils import generate_pool_paths, folder_picker
+from utils.general_utils import get_pool_paths, folder_picker
 
 
 def get_files(folder, extensions):
@@ -28,6 +28,7 @@ def config_parser():
     parser.add_argument('--data_loader', type=str, help='the name of the data loading function')
     parser.add_argument('--max_data', type=int, help='the maximal length of data')
     parser.add_argument('--model', type=str, help='model arch')
+    parser.add_argument('--pred_on_the_fly', type=bool)
 
     return parser
 
@@ -59,28 +60,25 @@ if __name__ == "__main__":
             source_file = str(pathlib.Path(source_file))
             base = os.path.basename(source_file)
             basename, ext = os.path.splitext(base)
-            image_path, gt_path, pred_path, scribble_path = generate_pool_paths(os.path.join(pool_folder, data_type),
-                                                                                basename)
+            image_path, gt_path, pred_path, scribble_path = get_pool_paths(os.path.join(pool_folder, data_type),
+                                                                           basename)
             img, gt, success = data_loaders[args.data_loader](source_file)
             if not success:
                 continue
-            target_rows, target_cols = q_factor[args.model] * (img.shape[0] // q_factor[args.model]), \
-                                       q_factor[args.model] * (img.shape[1] // q_factor[args.model])
+            q = q_factor[args.model]
+            target_rows, target_cols = q * (img.shape[0] // q), q * (img.shape[1] // q)
 
             img = img[:target_rows, :target_cols, :]
             gt = gt[:target_rows, :target_cols, :]
 
-            pred = np.zeros([target_rows, target_cols, n_classes])
             scribble = np.zeros([target_rows, target_cols, n_classes], dtype=bool)
             if data_type == 'train':
                 df.append([source_file, 1.])
             else:
                 val_paths.append([source_file])
-            try:
-                np.save(pred_path, (255 * pred).astype(np.uint8))
-                np.savez_compressed(scribble_path, scribble)
-            except Exception as e:
-                print(e)
+            if not args.pred_on_the_fly:
+                np.save(pred_path, np.zeros([target_rows, target_cols, n_classes], dtype=np.uint8))
+            np.savez_compressed(scribble_path, scribble)
 
     df = pd.DataFrame.from_records(df, columns=['paths', 'score'])
     df_path = os.path.join(os.path.join(pool_folder, 'train'), 'priorities.csv')

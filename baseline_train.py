@@ -3,13 +3,11 @@ import os
 import configargparse
 import numpy as np
 import pandas as pd
-import tensorflow as tf
-from tensorflow.keras import backend as K
 from tensorflow.keras import optimizers, callbacks
 from tqdm import tqdm
 
 import constants
-from models.architectures import model_types, q_factor
+from models.architectures import model_types, q_factor, weighted_cce
 from utils.data_loaders_utils import data_loaders
 from utils.general_utils import folder_picker
 from utils.image_utils import normalize_image
@@ -59,13 +57,6 @@ def data_generator(image_paths, args):
             x[i] = normalize_image(img[:n_rows, :n_cols])
             y[i] = gt[:n_rows, :n_cols]
         yield x, y
-
-
-def weighted_cce(y_true, y_pred):
-    weights = tf.reduce_sum(y_true, axis=-1, keepdims=True)
-    y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
-    loss = -K.sum(tf.reduce_sum(y_true * K.log(y_pred), axis=-1, keepdims=True) * weights, -1)
-    return loss
 
 
 def config_parser():
