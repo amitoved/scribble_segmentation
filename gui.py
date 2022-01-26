@@ -1,13 +1,12 @@
 import os
-import pathlib
 import tkinter as tk
 from time import time
 from tkinter import colorchooser, StringVar
 
 import configargparse
-import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from PIL import ImageTk, Image, ImageDraw
 from skimage.transform import resize
 
@@ -127,38 +126,40 @@ class App:
         self.window.geometry(f'{screen_w}x{screen_h}')
 
     def get_x_and_y(self, event):
-        self.last_x, self.last_y = event.x_sample, event.y_sample
+        self.last_x, self.last_y = event.x, event.y
 
     def draw_smth(self, event):
         self.class_val = constants.classes_order.index(self.selected_class.get())
         pil_rgb = rgb2tk(tuple((255 * np.array(list(self.pil_colors[self.class_val]))).astype(int)[:-1]))
 
         brush_size = int(self.brush_size.get())
-        self.canvas.create_line((self.last_x, self.last_y, event.x_sample, event.y_sample), fill=pil_rgb, width=brush_size)
-        self.annotations[self.class_val].append([event.x_sample, event.y_sample])
+        self.canvas.create_line((self.last_x, self.last_y, event.x, event.y), fill=pil_rgb,
+                                width=brush_size)
+        self.annotations[self.class_val].append([event.x, event.y])
 
         img1 = ImageDraw.Draw(self.scribble)
-        img1.line((self.last_x, self.last_y, event.x_sample, event.y_sample), fill=self.class_val, width=brush_size)
-        self.last_x, self.last_y = event.x_sample, event.y_sample
+        img1.line((self.last_x, self.last_y, event.x, event.y), fill=self.class_val, width=brush_size)
+        self.last_x, self.last_y = event.x, event.y
 
     def update_scribble(self):
         scribble = np.load(self.scribble_path)['arr_0']
         current_scribble = np.array(self.scribble)
-        current_scribble = resize(current_scribble, (self.height_o, self.width_o), order=0, anti_aliasing=False)
+        current_scribble = resize(current_scribble, (self.height_o, self.width_o), order=0, anti_aliasing=False,
+                                  preserve_range=True)
         r, c = np.where(current_scribble != 255)
-        val = current_scribble[r, c]
-        scribble[r, c, val.astype(int)] = scribble[r, c, val.astype(int)] == False
+        val = current_scribble[r, c].astype(int)
+        scribble[r, c, val.astype(int)] = scribble[r, c, val] == False
         self.scribble = scribble
 
     def clear(self):
         self.last_x, self.last_y = None, None
         self.annotations = {val: [] for val in constants.classes.values()}
         self.class_val = None
-        self.scribble = np.zeros_like(self.scribble)
+        self.scribble = Image.fromarray(255 * np.ones_like(self.scribble))
         self.canvas.create_image(0, 0, image=self.photo, anchor=tk.NW)
 
     def save(self):
-        if np.any(np.array(self.scribble)):
+        if np.any(np.array(self.scribble) != 255):
             self.update_scribble()
             np.savez_compressed(self.scribble_path, self.scribble)
             print(self.scribble_path)
@@ -180,7 +181,7 @@ class App:
     def change_size(self, event=None):
         try:
             self.size = int(self.size_entry.get())
-        except Exceptions as ex:
+        except Exception as ex:
             print(ex)
 
 
@@ -188,14 +189,9 @@ def config_parser():
     parser = configargparse.ArgumentParser(ignore_unknown_config_file_keys=True)
     parser.add_argument('--config', is_config_file=True,
                         help='config file path')
-    # parser.add_argument('--epochs', type=int, help='number of epochs')
-    # parser.add_argument('--spe', type=int, help='steps per epoch')
-    # parser.add_argument('--batch', type=int, help='batchsize')
-    # parser.add_argument('--lr', type=float, help='learning rate')
     parser.add_argument('--annotate_gt', action='store_true')
     parser.add_argument('--data_loader', type=str, help='the name of the data loading function')
     parser.add_argument('--q', type=int, help='the image size should be a multiplier of this number')
-
 
     return parser
 

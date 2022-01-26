@@ -1,5 +1,4 @@
 import os
-import pathlib
 
 import configargparse
 import numpy as np
@@ -47,15 +46,14 @@ def data_generator(args):
             found_non_empty_scribble = False
             while not found_non_empty_scribble:
                 image_path = np.random.choice(image_paths, p=priorities)
-                image_path = pathlib.Path(image_path)
                 basename, _ = os.path.splitext(os.path.basename(image_path))
                 _, gt_path, _, scribble_path = generate_pool_paths(os.path.join(pool_folder, 'train'), basename)
-                true = np.load(scribble_path)['arr_0']
+                scribble = np.load(scribble_path)['arr_0']
 
-                if np.any(true):
+                if np.any(scribble):
                     img, _, _ = data_loaders[args.data_loader](image_path)
                     x[i] = normalize_image(img)
-                    y[i] = true.astype(int)
+                    y[i] = scribble.astype(int)
                     found_non_empty_scribble = True
         yield x, y
 
@@ -63,21 +61,18 @@ def data_generator(args):
 def load_data(image_paths, args):
     n = len(image_paths)
     img, gt, _ = data_loaders[args.data_loader](image_paths[0])
-    target_rows, target_cols = q_factor[args.model] * (img.shape[0] // q_factor[args.model]), q_factor[args.model] * (
-                img.shape[1] // q_factor[args.model])
+    q = q_factor[args.model]
+    n_rows, n_cols = q * (img.shape[0] // q), q * (img.shape[1] // q)
 
-    if img.ndim == 2:
-        img = img[..., None]
-    sample_image = img[:target_rows, :target_cols, :]
-    n_rows, n_cols, n_input_channels = sample_image.shape
-    x = np.zeros((n, n_rows, n_cols, n_input_channels))
+    input_channels = img.shape[-1]
+    x = np.zeros((n, n_rows, n_cols, input_channels))
     y = np.zeros((n, n_rows, n_cols, constants.n_classes))
+
     print('Loading validation data')
-    for i in tqdm(range(n)):
-        image_path = pathlib.Path(image_paths[i])
+    for i, image_path in tqdm(enumerate(image_paths)):
         img, gt, _ = data_loaders[args.data_loader](image_path)
-        x[i] = normalize_image(img[:target_rows, :target_cols])
-        y[i] = gt[:target_rows, :target_cols]
+        x[i] = normalize_image(img[:n_rows, :n_cols])
+        y[i] = gt[:n_rows, :n_cols]
     return x, y
 
 
@@ -108,16 +103,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     training_generator = data_generator(args)
-    x_sample, _ = next(training_generator)
-
     val_pool = os.path.join(pool_folder, 'val')
     training_pool = os.path.join(pool_folder, 'train')
     val_image_paths = list(pd.read_csv(os.path.join(val_pool, 'priorities.csv')).paths)
     train_image_paths = list(pd.read_csv(os.path.join(training_pool, 'priorities.csv')).paths)
 
     val_x, val_y = load_data(val_image_paths, args)
-
-    n_input_channels = x_sample.shape[-1]
+    n_input_channels = val_x.shape[-1]
     model = model_types[args.model](n_input_channels)
     model.compile(loss=[weighted_cce], optimizer=optimizers.Adam(args.lr))
 
@@ -125,7 +117,7 @@ if __name__ == '__main__':
 
     while True:
         model.fit(training_generator, validation_data=(val_x, val_y), steps_per_epoch=args.spe,
-                  epochs=args.epochs)
+                  epochs=args.epochs, validation_batch_size=1)
         df = []
         for image_path, pred_path in tqdm(zip(train_image_paths, pred_paths)):
             image, _, _ = data_loaders[args.data_loader](image_path)
