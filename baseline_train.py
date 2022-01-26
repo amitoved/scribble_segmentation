@@ -1,4 +1,5 @@
 import os
+import platform
 
 import configargparse
 import numpy as np
@@ -14,9 +15,7 @@ from utils.data_loaders_utils import data_loaders
 from utils.general_utils import folder_picker
 from utils.image_utils import normalize_image
 
-pool_folder = folder_picker(initialdir=constants.DATA_DIR)
 
-import platform
 
 if 'macOS' in platform.platform():
     os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
@@ -80,13 +79,18 @@ def config_parser():
     parser.add_argument('--annotate_gt', action='store_true')
     parser.add_argument('--baseline_training_sizes', action='append')
     parser.add_argument('--data_loader', type=str, help='the name of the data loading function')
-
+    parser.add_argument('--pool_folder', type=str, default=None, required=False,
+                        help='pool folder for pool generation')
     return parser
 
 
 if __name__ == '__main__':
     parser = config_parser()
     args = parser.parse_args()
+    if args.pool_folder is None:
+        pool_folder = folder_picker(initialdir=constants.DATA_DIR)
+    else:
+        pool_folder = args.pool_folder
 
     training_pool = os.path.join(pool_folder, 'train')
     val_pool = os.path.join(pool_folder, 'val')
@@ -101,14 +105,18 @@ if __name__ == '__main__':
         model.compile(loss=[weighted_cce], optimizer=optimizers.Adam(args.lr))
         training_set_size = int(float(relative_training_set_size) * len(training_image_paths))
         print('##########')
-        print(f'strating training_set_size = {training_set_size}')
+        print(f'{relative_training_set_size}: strating training_set_size = {training_set_size}')
         model_path = os.path.join(pool_folder, f'training_log_size_{training_set_size}.h5')
         log_path = os.path.join(pool_folder, f'training_log_size_{training_set_size}.npy')
 
         checkpoint_callback = callbacks.ModelCheckpoint(filepath=model_path, verbose=1, monitor='val_loss',
                                                         save_best_only=True, save_weights_only=False)
+        early_stop = callbacks.EarlyStopping(
+            monitor='val_loss', min_delta=0, patience=5, verbose=1,
+            mode='auto', baseline=None, restore_best_weights=False
+        )
         training_generator = data_generator(training_image_paths[:training_set_size], args)
         training_log = model.fit(training_generator, validation_data=(val_x, val_y), steps_per_epoch=args.spe,
-                                 epochs=args.epochs, callbacks=[checkpoint_callback], validation_batch_size=1)
+                                 epochs=args.epochs, callbacks=[checkpoint_callback, early_stop], validation_batch_size=1)
         np.save(log_path, training_log.history)
         np.load(log_path, allow_pickle=True)

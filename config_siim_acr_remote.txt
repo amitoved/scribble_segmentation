@@ -1,0 +1,12 @@
+batch = 4
+lr = 1e-3
+epochs = 200
+spe = 100
+train_p = 0.9
+annotate_gt = True
+baseline_training_sizes = [0.1, 0.2, 0.5, 1.0]
+model = unet2d_5
+data_loader = siim_true
+max_data = 2000
+source_folder = /algo/users/yedidya/input/train/dicom_files
+pool_folder = /algo/users/yedidya/scribble_segmentation/data/dicom_files

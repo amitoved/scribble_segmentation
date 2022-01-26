@@ -28,6 +28,8 @@ def config_parser():
     parser.add_argument('--data_loader', type=str, help='the name of the data loading function')
     parser.add_argument('--max_data', type=int, help='the maximal length of data')
     parser.add_argument('--model', type=str, help='model arch')
+    parser.add_argument('--source_folder', type=str, default=None, required=False,
+                        help='source folder for pool generation')
 
     return parser
 
@@ -35,7 +37,10 @@ def config_parser():
 if __name__ == "__main__":
     parser = config_parser()
     args = parser.parse_args()
-    source_folder = folder_picker(title='Choose a folder containing images')
+    if args.source_folder is None:
+        source_folder = folder_picker(title='Choose a folder containing images')
+    else:
+        source_folder = args.source_folder
     source_files = get_files(folder=source_folder, extensions=['*.png', '*.jpg', '*.dcm'])
     source_files = source_files[:np.minimum(len(source_files), args.max_data)]
     pool_name = os.path.basename(source_folder)
