@@ -42,7 +42,7 @@ def carla_class_loader(image_path, class_num):
     seg = imageio.imread(seg_path)
     # crop the own car
     img = img[:500, :, :]
-    seg = seg[:500, :, :]
+    seg = seg[:500, :, 0]
     seg = (seg == class_num).astype(int)
     seg = to_categorical(seg, num_classes=2)
     return img, seg, True
@@ -100,6 +100,6 @@ def siim_acr_true_loader(image_path):
 
 data_loaders = {'kitti_road': partial(kitti_class_loader, class_num=7),
                 'kitti_car': partial(kitti_class_loader, class_num=26),
-                'carla_car': partial(kitti_class_loader, class_num=10),
+                'carla_car': partial(carla_class_loader, class_num=10),
                 'siim': siim_acr_loader,
                 'siim_true': siim_acr_true_loader}

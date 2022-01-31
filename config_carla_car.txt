@@ -1,0 +1,10 @@
+batch = 30
+lr = 1e-3
+epochs = 100
+spe = 10
+train_p = 0.9
+annotate_gt = True
+baseline_training_sizes = [0.1, 0.2, 0.5, 1.0]
+model = unet2d_5
+data_loader = carla_car
+max_data = 1000

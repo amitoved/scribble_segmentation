@@ -112,7 +112,7 @@ if __name__ == '__main__':
         checkpoint_callback = callbacks.ModelCheckpoint(filepath=model_path, verbose=1, monitor='val_loss',
                                                         save_best_only=True, save_weights_only=False)
         early_stop = callbacks.EarlyStopping(
-            monitor='val_loss', min_delta=0, patience=5, verbose=1,
+            monitor='val_loss', min_delta=0, patience=10, verbose=1,
             mode='auto', baseline=None, restore_best_weights=False
         )
         training_generator = data_generator(training_image_paths[:training_set_size], args)
