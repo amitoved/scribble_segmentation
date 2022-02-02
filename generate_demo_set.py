@@ -95,6 +95,6 @@ if __name__ == "__main__":
     df.to_csv(df_path)
 
     timer_path = os.path.join(pool_folder, 'train', 'timer.txt')
-    with open(timer_path, 'w') as f:
+    with open(timer_path, 'w+') as f:
         f.write('')
     print('Done')

@@ -15,16 +15,9 @@ from utils.data_loaders_utils import data_loaders
 from utils.general_utils import folder_picker
 from utils.image_utils import normalize_image
 
-
-
 if 'macOS' in platform.platform():
     os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
-
-# if tf.test.gpu_device_name():
-#     print('GPU found')
-# else:
-#     print("No GPU found")
 
 def load_data(image_paths, args):
     n = len(image_paths)
@@ -117,6 +110,7 @@ if __name__ == '__main__':
         )
         training_generator = data_generator(training_image_paths[:training_set_size], args)
         training_log = model.fit(training_generator, validation_data=(val_x, val_y), steps_per_epoch=args.spe,
-                                 epochs=args.epochs, callbacks=[checkpoint_callback, early_stop], validation_batch_size=1)
+                                 epochs=args.epochs, callbacks=[checkpoint_callback, early_stop],
+                                 validation_batch_size=1)
         np.save(log_path, training_log.history)
 print('Done.')
