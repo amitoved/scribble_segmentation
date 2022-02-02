@@ -1,0 +1,9 @@
+batch = 2
+lr = 1e-3
+epochs = 2
+spe = 100
+train_p = 0.8
+annotate_gt = False
+baseline_training_sizes = [0.1, 0.2, 0.5, 1.0]
+model = unet2d_5
+data_loader = drive

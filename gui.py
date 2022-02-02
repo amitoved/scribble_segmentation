@@ -11,6 +11,7 @@ from PIL import ImageTk, Image, ImageDraw
 from skimage.transform import resize
 
 import constants
+from models.architectures import q_factor
 from utils.data_loaders_utils import data_loaders
 from utils.general_utils import rgb2tk, folder_picker, generate_pool_paths
 from utils.image_utils import multichannel2rgb, generate_colormap
@@ -43,7 +44,8 @@ class App:
         self.image_path = self.prob_df.iloc[np.random.randint(0, len(self.prob_df))].paths
         basename, _ = os.path.splitext(os.path.basename(self.image_path))
         _, _, self.pred_path, self.scribble_path = generate_pool_paths(self.pool_folder, basename)
-        image, gt, _ = data_loaders[args.data_loader](self.image_path)
+        data_loader = data_loaders[args.data_loader]
+        image, gt, _ = data_loader(self.image_path, q_factor=q_factor[args.model])
 
         if self.annotate_gt:
             image = multichannel2rgb(gt)
@@ -191,8 +193,7 @@ def config_parser():
                         help='config file path')
     parser.add_argument('--annotate_gt', action='store_true')
     parser.add_argument('--data_loader', type=str, help='the name of the data loading function')
-    parser.add_argument('--q', type=int, help='the image size should be a multiplier of this number')
-
+    parser.add_argument('--model', type=str, help='model arch')
     return parser
 
 

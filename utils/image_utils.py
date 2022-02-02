@@ -8,8 +8,8 @@ def normalize_image(x):
 
 def img_tv(y_pred):
     # https://en.wikipedia.org/wiki/Total_variation_denoising
-    dx = filters.sobel_h(y_pred)
-    dy = filters.sobel_v(y_pred)
+    dx = y_pred[1:, 1:] - y_pred[1:, :-1]
+    dy = y_pred[1:, 1:] - y_pred[:-1, 1:]
     return np.mean((dx ** 2 + dy ** 2) ** 0.5)
 
 

@@ -1,4 +1,5 @@
 import os
+from functools import partial
 
 import configargparse
 import numpy as np
@@ -21,18 +22,16 @@ import platform
 if 'macOS' in platform.platform():
     os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
-
-# if tf.test.gpu_device_name():
-#     print('GPU found')
-# else:
-#     print("No GPU found")
+if tf.test.gpu_device_name():
+    print('GPU found')
+else:
+    print("No GPU found")
 
 
 def data_generator(args):
     df = pd.read_csv(os.path.join(pool_folder, 'train', 'priorities.csv'))
     image_paths = list(df['paths'])
-
-    sample_image, _, _ = data_loaders[args.data_loader](image_paths[0])
+    sample_image, _, _ = data_loader(image_paths[0])
     n_rows, n_cols, n_input_channels = sample_image.shape
     x = np.zeros((args.batch, n_rows, n_cols, n_input_channels))
     y = np.zeros((args.batch, n_rows, n_cols, constants.n_classes))
@@ -51,7 +50,8 @@ def data_generator(args):
                 scribble = np.load(scribble_path)['arr_0']
 
                 if np.any(scribble):
-                    img, _, _ = data_loaders[args.data_loader](image_path)
+
+                    img, _, _ = data_loader(image_path)
                     x[i] = normalize_image(img)
                     y[i] = scribble.astype(int)
                     found_non_empty_scribble = True
@@ -102,6 +102,7 @@ if __name__ == '__main__':
     parser = config_parser()
     args = parser.parse_args()
 
+    data_loader = partial(data_loaders[args.data_loader], q_factor=q_factor[args.model])
     training_generator = data_generator(args)
     val_pool = os.path.join(pool_folder, 'val')
     training_pool = os.path.join(pool_folder, 'train')
@@ -120,10 +121,11 @@ if __name__ == '__main__':
                   epochs=args.epochs, validation_batch_size=1)
         df = []
         for image_path, pred_path in tqdm(zip(train_image_paths, pred_paths)):
-            image, _, _ = data_loaders[args.data_loader](image_path)
+            image, _, _ = data_loader(image_path)
             pred = model.predict(image[None, ...])[0]
             score = img_tv(pred)
             df.append([image_path, score])
             np.save(arr=(pred * 255).astype(np.uint8), file=pred_path)
         df = pd.DataFrame.from_records(df, columns=['paths', 'score'])
-        df.to_csv(constants.PRIORITY_DF)
+        df_path = os.path.join(os.path.join(pool_folder, 'train'), 'priorities.csv')
+        df.to_csv(df_path)

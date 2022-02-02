@@ -1,5 +1,6 @@
 import os
 import platform
+from functools import partial
 
 import configargparse
 import numpy as np
@@ -19,13 +20,16 @@ if 'macOS' in platform.platform():
     os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 
+if tf.test.gpu_device_name():
+    print('GPU found')
+else:
+    print("No GPU found")
+
 def load_data(image_paths, args):
     n = len(image_paths)
-    img, gt, _ = data_loaders[args.data_loader](image_paths[0])
-    q = q_factor[args.model]
-    n_rows, n_cols = q * (img.shape[0] // q), q * (img.shape[1] // q)
-
-    input_channels = img.shape[-1]
+    data_loader = partial(data_loaders[args.data_loader], q_factor=q_factor[args.model])
+    img, gt, _ = data_loader(image_paths[0])
+    n_rows, n_cols, input_channels = img.shape[0:3]
     x = np.zeros((n, n_rows, n_cols, input_channels))
     y = np.zeros((n, n_rows, n_cols, constants.n_classes))
     print('Loading validation data')

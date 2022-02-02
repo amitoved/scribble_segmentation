@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from constants import DATA_DIR, n_classes, SEED
+from constants import DATA_DIR, SEED
 from models.architectures import q_factor
 from utils.data_loaders_utils import data_loaders
 from utils.general_utils import generate_pool_paths, folder_picker
@@ -26,7 +26,7 @@ def config_parser():
                         help='config file path')
     parser.add_argument('--train_p', type=float, help='training data proportion')
     parser.add_argument('--data_loader', type=str, help='the name of the data loading function')
-    parser.add_argument('--max_data', type=int, help='the maximal length of data')
+    parser.add_argument('--max_data', default=None, help='the maximal length of data')
     parser.add_argument('--model', type=str, help='model arch')
     parser.add_argument('--source_folder', type=str, default=None, required=False,
                         help='source folder for pool generation')
@@ -41,10 +41,8 @@ if __name__ == "__main__":
         source_folder = folder_picker(title='Choose a folder containing images')
     else:
         source_folder = args.source_folder
-    source_files = get_files(folder=source_folder, extensions=['*.png', '*.jpg', '*.dcm'])
-    source_files = source_files[:np.minimum(len(source_files), args.max_data)]
-    pool_name = os.path.basename(source_folder)
-    pool_folder = os.path.join(DATA_DIR, pool_name)
+    source_files = get_files(folder=source_folder, extensions=['*.png', '*.jpg', '*.dcm', '*.tif'])
+    pool_folder = os.path.join(DATA_DIR, args.data_loader)
 
     if not os.path.exists(pool_folder):
         os.mkdir(pool_folder)
@@ -55,9 +53,11 @@ if __name__ == "__main__":
     val_paths = []
     np.random.seed(SEED)
     np.random.shuffle(source_files)
-    n_files = len(source_files)
-    training_source_files = source_files[:int(args.train_p * n_files)]
-    val_source_files = source_files[int(args.train_p * n_files):]
+    if args.max_data is not None:
+        source_files = source_files[:min(len(source_files), args.max_data)]
+    train_val_split = int(args.train_p * len(source_files))
+    training_source_files = source_files[:train_val_split]
+    val_source_files = source_files[train_val_split:]
     for data_type in ['train', 'val']:
         source_files_subset = training_source_files if data_type == 'train' else val_source_files
         for source_file in tqdm(source_files_subset):
@@ -66,17 +66,13 @@ if __name__ == "__main__":
             basename, ext = os.path.splitext(base)
             image_path, gt_path, pred_path, scribble_path = generate_pool_paths(os.path.join(pool_folder, data_type),
                                                                                 basename)
-            img, gt, success = data_loaders[args.data_loader](source_file)
+            data_loader = data_loaders[args.data_loader]
+            img, gt, success = data_loader(source_file, q_factor=q_factor[args.model])
             if not success:
                 continue
-            target_rows, target_cols = q_factor[args.model] * (img.shape[0] // q_factor[args.model]), \
-                                       q_factor[args.model] * (img.shape[1] // q_factor[args.model])
 
-            img = img[:target_rows, :target_cols, :]
-            gt = gt[:target_rows, :target_cols, :]
-
-            pred = np.zeros([target_rows, target_cols, n_classes])
-            scribble = np.zeros([target_rows, target_cols, n_classes], dtype=bool)
+            pred = np.zeros(gt.shape)
+            scribble = np.zeros(gt.shape, dtype=bool)
             if data_type == 'train':
                 df.append([source_file, 1.])
             else:
