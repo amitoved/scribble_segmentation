@@ -53,6 +53,7 @@ def carla_class_loader(image_path, class_num, q_factor=None):
     img = img[:500, :, :]
     seg = seg[:500, :, 0]
     seg = (seg == class_num).astype(int)
+    seg = to_categorical(seg, num_classes=2)
     img = trim_array_by_q(img, q_factor)
     seg = trim_array_by_q(seg, q_factor)
     return img, seg, True

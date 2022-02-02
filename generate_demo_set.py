@@ -26,7 +26,7 @@ def config_parser():
                         help='config file path')
     parser.add_argument('--train_p', type=float, help='training data proportion')
     parser.add_argument('--data_loader', type=str, help='the name of the data loading function')
-    parser.add_argument('--max_data', default=None, help='the maximal length of data')
+    parser.add_argument('--max_data', type=int, default=None, help='the maximal length of data')
     parser.add_argument('--model', type=str, help='model arch')
     parser.add_argument('--source_folder', type=str, default=None, required=False,
                         help='source folder for pool generation')
